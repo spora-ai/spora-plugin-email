@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spora-ai/spora-core/v0.3.0/plugin.schema.json",
+  "slug": "email",
+  "description": "SMTP send + IMAP read for Spora agents.",
+  "class": "Spora\\\\Plugins\\\\Email\\\\EmailPlugin",
+  "icon": "puzzle",
+  "autoload": {
+    "psr-4": {
+      "Spora\\\\Plugins\\\\Email\\\\": "src/"
+    }
+  }
+}
