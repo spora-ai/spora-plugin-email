@@ -798,4 +798,93 @@ describe('EmailTool', function () {
             expect($tool->describeAction(['action' => 'unknown']))->toBe('Perform an email operation');
         });
     });
+
+    // Failure paths (coverage of error branches)
+
+    describe('failure paths', function () {
+        it('create_draft returns error when IMAP saveDraft fails', function () {
+            $settings = array_merge(allImapSettings(), allSmtpSettings('agent@spora.local'));
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn($settings);
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->allows('saveDraft')->andReturn(false);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'   => 'create_draft',
+                'to'       => EMAIL_TO_BOB,
+                'subject'  => 'Test',
+                'body'     => 'Body',
+            ], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain('Failed to save draft');
+        });
+
+        it('rename_folder returns error when IMAP renameFolder fails', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn(allImapSettings());
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->allows('renameFolder')->andReturn(false);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute(['action' => 'rename_folder', 'folder' => 'Old', 'new_folder' => 'New'], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain("Failed to rename folder 'Old' to 'New'");
+        });
+
+        it('delete_folder returns error when IMAP deleteFolder fails', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn(allImapSettings());
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->allows('fetchFolderNames')->andReturn(['Trash']);
+            $imap->allows('deleteFolder')->andReturn(false);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute(['action' => 'delete_folder', 'folder' => 'Trash'], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain("Failed to delete folder 'Trash'");
+        });
+
+        it('move_email returns error when IMAP moveEmail returns empty new uid', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn(allImapSettings());
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->allows('moveEmail')->andReturn('');
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute(['action' => 'move_email', 'uid' => 123, 'folder' => 'INBOX', 'new_folder' => 'Archive'], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain("Failed to move email UID 123");
+        });
+
+        it('delete_email returns error when IMAP deleteEmail returns false', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn(allImapSettings());
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->allows('deleteEmail')->andReturn(false);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute(['action' => 'delete_email', 'uid' => 123, 'folder' => 'INBOX'], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain("Failed to delete email UID 123");
+        });
+
+        it('mark_email_read returns error when IMAP setEmailFlag returns false', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn(allImapSettings());
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->allows('setEmailFlag')->andReturn(false);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute(['action' => 'mark_email_read', 'uid' => 123, 'folder' => 'INBOX', 'read' => true], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain("Failed to mark email UID 123");
+        });
+    });
 });
