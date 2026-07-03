@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Spora\Plugins\Email\Email;
 
-use Spora\Plugins\Email\Imap\ImapClientInterface;
 use Spora\Tools\ValueObjects\ToolResult;
 use Throwable;
 
@@ -56,57 +55,85 @@ final class EmailValidationHelpers
 
     /**
      * Precondition for `createFolder`: `$name` must not already exist.
+     * Invokes `$callback` with the resolved IMAP settings only when the
+     * invariant holds — lets the caller collapse the success/failure path
+     * to a single `return` (keeping `S1142` happy).
      *
-     * @return array{settings: array<string, mixed>, folders: list<string>}|ToolResult
+     * @param callable(array<string, mixed>): ToolResult $callback
      */
     public static function withNewFolderGuard(
-        EmailSettingsResolver $resolver,
-        ImapClientInterface $imap,
-        EmailMessageFormatter $formatter,
+        FolderCheckContext $ctx,
         string $toolClass,
         int $agentId,
         ?int $userId,
         string $name,
-    ): array|ToolResult {
-        return self::checkFolderInvariant($resolver, $imap, $formatter, $toolClass, $agentId, $userId, $name, mustExist: false);
+        callable $callback,
+    ): ToolResult {
+        return self::runFolderGuard($ctx, $toolClass, $agentId, $userId, $name, false, $callback);
     }
 
     /**
      * Precondition for `deleteFolder`: `$name` must already exist.
+     * Invokes `$callback` with the resolved IMAP settings only when the
+     * invariant holds.
      *
-     * @return array{settings: array<string, mixed>, folders: list<string>}|ToolResult
+     * @param callable(array<string, mixed>): ToolResult $callback
      */
     public static function withExistingFolderGuard(
-        EmailSettingsResolver $resolver,
-        ImapClientInterface $imap,
-        EmailMessageFormatter $formatter,
+        FolderCheckContext $ctx,
         string $toolClass,
         int $agentId,
         ?int $userId,
         string $name,
-    ): array|ToolResult {
-        return self::checkFolderInvariant($resolver, $imap, $formatter, $toolClass, $agentId, $userId, $name, mustExist: true);
+        callable $callback,
+    ): ToolResult {
+        return self::runFolderGuard($ctx, $toolClass, $agentId, $userId, $name, true, $callback);
+    }
+
+    /**
+     * Single-return helper behind the public `withNewFolderGuard` /
+     * `withExistingFolderGuard` pair. Kept private so callers only see the
+     * two guard flavours, not the boolean switch.
+     *
+     * @param callable(array<string, mixed>): ToolResult $callback
+     */
+    private static function runFolderGuard(
+        FolderCheckContext $ctx,
+        string $toolClass,
+        int $agentId,
+        ?int $userId,
+        string $name,
+        bool $mustExist,
+        callable $callback,
+    ): ToolResult {
+        $payload = self::resolveImapFoldersOrFail($ctx, $toolClass, $agentId, $userId);
+        if ($payload instanceof ToolResult) {
+            return $payload;
+        }
+        $failure = self::folderExistenceFailure($name, $mustExist, $payload['folders']);
+        if ($failure !== null) {
+            return $failure;
+        }
+        return $callback($payload['settings']);
     }
 
     /**
      * @return array{settings: array<string, mixed>, folders: list<string>}|ToolResult
      */
     private static function resolveImapFoldersOrFail(
-        EmailSettingsResolver $resolver,
-        ImapClientInterface $imap,
-        EmailMessageFormatter $formatter,
+        FolderCheckContext $ctx,
         string $toolClass,
         int $agentId,
         ?int $userId,
     ): array|ToolResult {
-        $imapSettings = $resolver->resolveImapSettingsOrFail($toolClass, $agentId, $userId);
+        $imapSettings = $ctx->resolver->resolveImapSettingsOrFail($toolClass, $agentId, $userId);
         if ($imapSettings instanceof ToolResult) {
             return $imapSettings;
         }
         try {
-            $folders = $imap->fetchFolderNames($imapSettings);
+            $folders = $ctx->imap->fetchFolderNames($imapSettings);
         } catch (Throwable $e) {
-            return $formatter->formatImapError('Failed to fetch folders', $e);
+            return $ctx->formatter->formatImapError('Failed to fetch folders', $e);
         }
         return ['settings' => $imapSettings, 'folders' => $folders];
     }
@@ -124,29 +151,5 @@ final class EmailValidationHelpers
             return ToolResult::ok("Folder '{$name}' already exists.");
         }
         return null;
-    }
-
-    /**
-     * @return array{settings: array<string, mixed>, folders: list<string>}|ToolResult
-     */
-    private static function checkFolderInvariant(
-        EmailSettingsResolver $resolver,
-        ImapClientInterface $imap,
-        EmailMessageFormatter $formatter,
-        string $toolClass,
-        int $agentId,
-        ?int $userId,
-        string $name,
-        bool $mustExist,
-    ): array|ToolResult {
-        $payload = self::resolveImapFoldersOrFail($resolver, $imap, $formatter, $toolClass, $agentId, $userId);
-        if ($payload instanceof ToolResult) {
-            return $payload;
-        }
-        $failure = self::folderExistenceFailure($name, $mustExist, $payload['folders']);
-        if ($failure !== null) {
-            return $failure;
-        }
-        return $payload;
     }
 }

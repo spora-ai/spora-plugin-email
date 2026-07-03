@@ -9,6 +9,7 @@ use Spora\Plugins\Email\Email\EmailActionDescriber;
 use Spora\Plugins\Email\Email\EmailMessageFormatter;
 use Spora\Plugins\Email\Email\EmailSettingsResolver;
 use Spora\Plugins\Email\Email\EmailValidationHelpers;
+use Spora\Plugins\Email\Email\FolderCheckContext;
 use Spora\Plugins\Email\Imap\ImapClientInterface;
 use Spora\Services\ToolConfigService;
 use Spora\Tools\AbstractTool;
@@ -263,25 +264,14 @@ final class EmailTool extends AbstractTool
             return $missing;
         }
 
-        $guard = EmailValidationHelpers::withNewFolderGuard(
-            $this->settingsResolver,
-            $this->imapClient,
-            $this->messageFormatter,
+        return EmailValidationHelpers::withNewFolderGuard(
+            $this->folderContext(),
             static::class,
             $agentId,
             $userId,
             $name,
+            fn(array $imapSettings): ToolResult => $this->performCreateFolder($imapSettings, $name),
         );
-        if ($guard instanceof ToolResult) {
-            return $guard;
-        }
-
-        $imapSettings = $guard['settings'];
-        if (!$this->imapClient->createFolder($imapSettings, $name)) {
-            return ToolResult::fail("Failed to create folder '{$name}'. Check that the folder name is valid.");
-        }
-
-        return ToolResult::ok("Folder '{$name}' created successfully.");
     }
 
     public function renameFolder(array $arguments, int $agentId, ?int $userId): ToolResult
@@ -317,25 +307,41 @@ final class EmailTool extends AbstractTool
             return $missing;
         }
 
-        $guard = EmailValidationHelpers::withExistingFolderGuard(
-            $this->settingsResolver,
-            $this->imapClient,
-            $this->messageFormatter,
+        return EmailValidationHelpers::withExistingFolderGuard(
+            $this->folderContext(),
             static::class,
             $agentId,
             $userId,
             $name,
+            fn(array $imapSettings): ToolResult => $this->performDeleteFolder($imapSettings, $name),
         );
-        if ($guard instanceof ToolResult) {
-            return $guard;
+    }
+
+    private function performCreateFolder(array $imapSettings, string $name): ToolResult
+    {
+        if (!$this->imapClient->createFolder($imapSettings, $name)) {
+            return ToolResult::fail("Failed to create folder '{$name}'. Check that the folder name is valid.");
         }
 
-        $imapSettings = $guard['settings'];
+        return ToolResult::ok("Folder '{$name}' created successfully.");
+    }
+
+    private function performDeleteFolder(array $imapSettings, string $name): ToolResult
+    {
         if (!$this->imapClient->deleteFolder($imapSettings, $name)) {
             return ToolResult::fail("Failed to delete folder '{$name}'. Check that it is not a system folder (e.g. INBOX).");
         }
 
         return ToolResult::ok("Folder '{$name}' deleted successfully.");
+    }
+
+    private function folderContext(): FolderCheckContext
+    {
+        return new FolderCheckContext(
+            $this->settingsResolver,
+            $this->imapClient,
+            $this->messageFormatter,
+        );
     }
 
     public function moveEmail(array $arguments, int $agentId, ?int $userId): ToolResult
