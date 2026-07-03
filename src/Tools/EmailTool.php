@@ -265,12 +265,17 @@ final class EmailTool extends AbstractTool
         }
 
         return EmailValidationHelpers::withNewFolderGuard(
-            $this->folderContext(),
+            new FolderCheckContext($this->settingsResolver, $this->imapClient, $this->messageFormatter),
             static::class,
             $agentId,
             $userId,
             $name,
-            fn(array $imapSettings): ToolResult => $this->performCreateFolder($imapSettings, $name),
+            function (array $imapSettings) use ($name): ToolResult {
+                if (!$this->imapClient->createFolder($imapSettings, $name)) {
+                    return ToolResult::fail("Failed to create folder '{$name}'. Check that the folder name is valid.");
+                }
+                return ToolResult::ok("Folder '{$name}' created successfully.");
+            },
         );
     }
 
@@ -308,39 +313,17 @@ final class EmailTool extends AbstractTool
         }
 
         return EmailValidationHelpers::withExistingFolderGuard(
-            $this->folderContext(),
+            new FolderCheckContext($this->settingsResolver, $this->imapClient, $this->messageFormatter),
             static::class,
             $agentId,
             $userId,
             $name,
-            fn(array $imapSettings): ToolResult => $this->performDeleteFolder($imapSettings, $name),
-        );
-    }
-
-    private function performCreateFolder(array $imapSettings, string $name): ToolResult
-    {
-        if (!$this->imapClient->createFolder($imapSettings, $name)) {
-            return ToolResult::fail("Failed to create folder '{$name}'. Check that the folder name is valid.");
-        }
-
-        return ToolResult::ok("Folder '{$name}' created successfully.");
-    }
-
-    private function performDeleteFolder(array $imapSettings, string $name): ToolResult
-    {
-        if (!$this->imapClient->deleteFolder($imapSettings, $name)) {
-            return ToolResult::fail("Failed to delete folder '{$name}'. Check that it is not a system folder (e.g. INBOX).");
-        }
-
-        return ToolResult::ok("Folder '{$name}' deleted successfully.");
-    }
-
-    private function folderContext(): FolderCheckContext
-    {
-        return new FolderCheckContext(
-            $this->settingsResolver,
-            $this->imapClient,
-            $this->messageFormatter,
+            function (array $imapSettings) use ($name): ToolResult {
+                if (!$this->imapClient->deleteFolder($imapSettings, $name)) {
+                    return ToolResult::fail("Failed to delete folder '{$name}'. Check that it is not a system folder (e.g. INBOX).");
+                }
+                return ToolResult::ok("Folder '{$name}' deleted successfully.");
+            },
         );
     }
 
