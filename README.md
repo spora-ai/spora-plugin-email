@@ -1,26 +1,135 @@
-# EmailPlugin
+# Email Plugin for Spora
 
-SMTP send + IMAP read for Spora agents.
+**SMTP send + IMAP read for Spora agents.** Point it at any SMTP/IMAP host
+(Gmail, Outlook, Fastmail, iCloud, or a self-hosted Postfix+Dovecot) and give
+agents a single `email` tool with 11 operations covering inbox read, folder
+management, drafts, sending, and message state.
 
-**Status: placeholder** (`v0.1.0`). The real tool class is not in this repo
-yet — it will be added in a follow-up release (`v0.2.0`) once the B1–B7
-tool extraction lands in `spora-ai/spora-core`.
+Under the hood: **SMTP** via [Symfony Mailer](https://symfony.com/doc/current/mailer.html)
+([RFC 5321](https://datatracker.ietf.org/doc/html/rfc5321)) and **IMAP** via
+[webklex/php-imap](https://www.php-imap.com/) ([RFC 3501](https://datatracker.ietf.org/doc/html/rfc3501)).
 
-For now this package:
+## Installation
 
-- Declares the `email` plugin slug (visible in `php bin/spora plugin:list`)
-- Exposes an empty `tools()` hook (no tools contributed yet)
-- Boots cleanly in a Spora install via `composer require spora-ai/spora-plugin-email:^0.1`
+```bash
+# Recommended — install via the Spora CLI
+php bin/spora plugin:install spora-ai/spora-plugin-email
+php bin/spora spora:install   # applies the plugin's migration
 
-## Local development
+# For development against a sibling git clone, pass --path:
+php bin/spora plugin:install spora-ai/spora-plugin-email --path=/abs/path/to/checkout
+
+# Alternative — drop a clone into the Spora repo
+git clone https://github.com/spora-ai/spora-plugin-email.git plugins/email
+php bin/spora spora:install
+
+# Alternative — external path (no Spora checkout changes)
+git clone https://github.com/spora-ai/spora-plugin-email.git /opt/spora-plugins/email
+echo 'SPORA_PLUGINS_PATHS=/opt/spora-plugins/email' >> .env
+php bin/spora spora:install
+```
+
+After install, the tool is registered as `email` in Spora's `communication`
+category. All operations are dispatched via a single `action` parameter
+(synthesized from the `#[ToolOperation]` attributes on `EmailTool`).
+
+## Configuration
+
+Settings → Tools → Email. The same `core.email.username` and
+`core.email.password` are used for both IMAP and SMTP authentication.
+
+| Setting | Required | Default | Notes |
+|---|---|---|---|
+| `core.imap.host` | yes (for read operations) | — | e.g. `imap.gmail.com` |
+| `core.imap.port` | no | `993` | IMAPS port; use `143` with `tls` (STARTTLS) |
+| `core.imap.encryption` | no | `ssl` | `ssl` (implicit TLS), `tls` (STARTTLS), or `notls` (not recommended) |
+| `core.imap.timeout` | no | `60` | Seconds before an IMAP connection fails |
+| `core.email.username` | yes | — | Full email address, used for IMAP **and** SMTP |
+| `core.email.password` | yes | — | Account password or app password |
+| `core.smtp.host` | yes (for send operations) | — | e.g. `smtp.gmail.com` |
+| `core.smtp.port` | no | `587` | Submission port; use `465` with `ssl` |
+| `core.smtp.encryption` | no | `tls` | `ssl`, `tls`, or `notls` |
+| `core.smtp.from` | yes (for send/draft) | — | The `From:` address the agent sends as |
+| `core.smtp.allowed_recipients` | no | _(empty = block all)_ | Comma-separated exact addresses the agent may send to, or `*` for any |
+| `core.smtp.timeout` | no | `30` | Seconds before an SMTP connection fails |
+
+`core.email.password` is encrypted at rest by Spora's `ToolConfigService`,
+masked in the UI, and never logged. SMTP recipient filtering is enforced in
+`EmailValidationHelpers::withValidSmtpSettings` before any message is queued
+to the Symfony Mailer transport.
+
+## Per-tool operations
+
+The `email` tool exposes 11 `action` values. The three read-side operations
+(`read_inbox`, `list_folders`, `read_folder`) are enabled by default; the
+remaining eight are gated behind a per-tool "require approval" flag and are
+disabled by default except `create_draft`, which defaults to off with no
+approval required.
+
+| Operation | Approval | Purpose | Parameters (types) |
+|---|---|---|---|
+| `read_inbox` | no | Recent messages from `INBOX` | `limit` int (default 5, max 20), `unread_only` bool, `mark_as_read` bool (irreversible) |
+| `list_folders` | no | All mailbox folders | _(none)_ |
+| `read_folder` | no | Recent messages from a named folder | `folder` string (required), `limit` int |
+| `create_draft` | no | Save a draft to `Drafts` via IMAP `APPEND` | `to` string, `subject` string, `body` string (all required) |
+| `send_email` | yes | SMTP send via Symfony Mailer | `to` string, `subject` string, `body` string (all required; `to` checked against `core.smtp.allowed_recipients`) |
+| `create_folder` | yes | IMAP `CREATE` | `new_folder` string (required) |
+| `rename_folder` | yes | IMAP `RENAME` | `folder` string (old name), `new_folder` string (required) |
+| `delete_folder` | yes | IMAP `DELETE` (blocks system folders) | `folder` string (required) |
+| `move_email` | yes | IMAP `COPY` + `EXPUNGE` | `uid` int, `folder` string (source), `new_folder` string (destination) |
+| `delete_email` | yes | IMAP `EXPUNGE` (sets `\Deleted`) | `uid` int, `folder` string |
+| `mark_email_read` | yes | IMAP `STORE` `\Seen` flag | `uid` int, `folder` string, `read` bool (default true) |
+
+Read operations clamp `limit` to `[1, 20]`; out-of-range values fall back to
+the default of 5. `mark_as_read=true` is irreversible on the server side —
+the agent cannot un-read a message it has marked.
+
+`describeAction()` renders each call for the approval UI through
+`EmailActionDescriber`, so the human-readable summary in the Spora admin
+shows the specific recipient, folder, or UID being acted on.
+
+## Provider setup
+
+SMTP and IMAP are protocols, not a SaaS — you point the plugin at any host.
+A few common operators:
+
+- **Gmail (Google Workspace + personal)** — IMAP requires an
+  [App password](https://support.google.com/accounts/answer/185833) since May
+  2022; the account password will not work even with IMAP enabled. Hosts:
+  `imap.gmail.com:993` (SSL), `smtp.gmail.com:587` (TLS).
+- **Outlook / Microsoft 365** — IMAP/SMTP AUTH requires an
+  [app password](https://support.microsoft.com/en-us/account-billing/how-to-get-and-use-app-passwords-9d72c3e9-f15a-44e2-a467-49852729683e)
+  when MFA is enforced, or OAuth2 for full-flow auth. Hosts:
+  `outlook.office365.com:993` (SSL), `smtp.office365.com:587` (TLS).
+- **Fastmail** — IMAP/SMTP work with the account password (or an
+  [app password](https://www.fastmail.com/help/clients/creating-an-app-password.html)
+  if MFA is on). Hosts: `imap.fastmail.com:993`, `smtp.fastmail.com:587`.
+- **iCloud** — Requires an [app-specific password](https://support.apple.com/en-us/HT204397)
+  (Apple ID MFA does not allow raw account passwords). Hosts:
+  `imap.mail.me.com:993`, `smtp.mail.me.com:587`.
+- **Self-hosted Postfix + Dovecot** — Plain STARTTLS on `143`/`587`, or
+  implicit TLS on `993`/`465`. Match `core.imap.encryption` and
+  `core.smtp.encryption` to whatever the MTA exposes.
+
+Always use an **app password / app-specific password** when the provider
+supports MFA — raw account passwords are rejected by every major provider
+once MFA is enrolled, and storing a raw password in Spora config defeats the
+encryption-at-rest guarantees in `ToolConfigService`. Never commit config
+files containing real passwords; rotate any credential that does end up in
+git history.
+
+## Development
 
 ```bash
 composer install
-./vendor/bin/pest
-./vendor/bin/phpstan analyse --no-progress
+./vendor/bin/pest           # unit + integration tests
+./vendor/bin/phpstan analyse
 ./vendor/bin/php-cs-fixer fix --dry-run --diff
 ```
 
-## License
+CI: `.github/workflows/ci.yml` — Pest on PHP 8.4 + 8.5, PHPStan level per
+`phpstan.neon`, php-cs-fixer dry-run. SonarCloud analysis against project
+key `spora-ai_spora-plugin-email` (requires `SONAR_TOKEN` secret on the
+repo).
 
-MIT
+MIT license.
