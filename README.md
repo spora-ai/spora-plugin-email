@@ -36,12 +36,12 @@ Settings → Tools → Email. The same `core.email.username` and
 | `core.smtp.port` | no | `587` | Submission port; use `465` with `ssl` |
 | `core.smtp.encryption` | no | `tls` | `ssl`, `tls`, or `notls` |
 | `core.smtp.from` | yes (for send/draft) | — | The `From:` address the agent sends as |
-| `core.smtp.allowed_recipients` | no | _(empty = block all)_ | Comma-separated exact addresses the agent may send to, or `*` for any |
+| `core.smtp.allowed_recipients` | no | _(empty = allow any)_ | Comma-separated exact addresses the agent may send to, or `*` for any. **Empty = unrestricted; set an explicit list for production.** |
 | `core.smtp.timeout` | no | `30` | Seconds before an SMTP connection fails |
 
 `core.email.password` is encrypted at rest by Spora's `ToolConfigService`,
-masked in the UI, and never logged. SMTP recipient filtering is enforced in
-`EmailValidationHelpers::withValidSmtpSettings` before any message is queued
+masked in the UI, and never logged. SMTP recipient filtering is enforced by
+`EmailSettingsResolver::validateSmtpSettings` before any message is queued
 to the Symfony Mailer transport.
 
 ## Per-tool operations
@@ -66,9 +66,9 @@ approval required.
 | `delete_email` | yes | IMAP `EXPUNGE` (sets `\Deleted`) | `uid` int, `folder` string |
 | `mark_email_read` | yes | IMAP `STORE` `\Seen` flag | `uid` int, `folder` string, `read` bool (default true) |
 
-Read operations clamp `limit` to `[1, 20]`; out-of-range values fall back to
-the default of 5. `mark_as_read=true` is irreversible on the server side —
-the agent cannot un-read a message it has marked.
+Read operations accept `limit` in `1..20`; out-of-range values fall back to
+the default of 5. `mark_as_read=true` via `read_inbox` sets the server-side
+`\Seen` flag; clear it with `mark_email_read(read=false)`.
 
 `describeAction()` renders each call for the approval UI through
 `EmailActionDescriber`, so the human-readable summary in the Spora admin
@@ -84,7 +84,7 @@ A few common operators:
   2022; the account password will not work even with IMAP enabled. Hosts:
   `imap.gmail.com:993` (SSL), `smtp.gmail.com:587` (TLS).
 - **Outlook / Microsoft 365** — IMAP/SMTP AUTH requires an
-  [app password](https://support.microsoft.com/en-us/account-billing/how-to-get-and-use-app-passwords-9d72c3e9-f15a-44e2-a467-49852729683e)
+  [app password](https://support.microsoft.com/en-us/account-billing/using-app-passwords-with-apps-that-dont-support-two-factor-verification-5896ed9b-4263-e681-128a-a6f2979a7944)
   when MFA is enforced, or OAuth2 for full-flow auth. Hosts:
   `outlook.office365.com:993` (SSL), `smtp.office365.com:587` (TLS).
 - **Fastmail** — IMAP/SMTP work with the account password (or an
