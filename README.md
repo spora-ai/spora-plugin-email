@@ -12,26 +12,12 @@ Under the hood: **SMTP** via [Symfony Mailer](https://symfony.com/doc/current/ma
 ## Installation
 
 ```bash
-# Recommended — install via the Spora CLI
 php bin/spora plugin:install spora-ai/spora-plugin-email
-php bin/spora spora:install   # applies the plugin's migration
-
-# For development against a sibling git clone, pass --path:
-php bin/spora plugin:install spora-ai/spora-plugin-email --path=/abs/path/to/checkout
-
-# Alternative — drop a clone into the Spora repo
-git clone https://github.com/spora-ai/spora-plugin-email.git plugins/email
-php bin/spora spora:install
-
-# Alternative — external path (no Spora checkout changes)
-git clone https://github.com/spora-ai/spora-plugin-email.git /opt/spora-plugins/email
-echo 'SPORA_PLUGINS_PATHS=/opt/spora-plugins/email' >> .env
-php bin/spora spora:install
 ```
 
-After install, the tool is registered as `email` in Spora's `communication`
-category. All operations are dispatched via a single `action` parameter
-(synthesized from the `#[ToolOperation]` attributes on `EmailTool`).
+For local development against a sibling checkout, pass `--path=/abs/path/to/checkout`.
+
+After install, the tool is registered as `email` in Spora's `communication` category. Operations are dispatched via a single `action` parameter (see [Per-tool operations](#per-tool-operations)).
 
 ## Configuration
 
