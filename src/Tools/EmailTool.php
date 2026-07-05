@@ -25,7 +25,7 @@ use Throwable;
 
 /**
  * Email tool supporting IMAP (read inbox, list folders, read folders) and SMTP (send, drafts).
- * Security: SMTP recipients are validated against core.smtp.allowed_recipients (comma-separated list or *).
+ * Security: SMTP recipients are validated against smtp_allowed_recipients (comma-separated list or *).
  */
 #[Tool(
     name: 'email',
@@ -45,19 +45,19 @@ use Throwable;
 #[ToolOperation(name: 'delete_email', description: 'Permanently delete an email', enabledByDefault: false, requiresApprovalByDefault: true)]
 #[ToolOperation(name: 'mark_email_read', description: 'Mark an email as read or unread', enabledByDefault: false, requiresApprovalByDefault: true)]
 // IMAP settings (for read operations)
-#[ToolSetting(key: 'core.imap.host', label: 'IMAP Host', type: 'text', description: 'e.g. imap.example.com', )]
-#[ToolSetting(key: 'core.imap.port', label: 'IMAP Port', type: 'text', description: 'Usually 993', default: '993')]
-#[ToolSetting(key: 'core.imap.encryption', label: 'IMAP Encryption', type: 'select', description: 'Encryption method for IMAP', default: 'ssl', options: ['ssl' => 'SSL/Implicit TLS', 'tls' => 'TLS/STARTTLS', 'notls' => 'None (not recommended)'])]
-#[ToolSetting(key: 'core.email.username', label: 'Email Username', type: 'text', description: 'Email address used for both IMAP and SMTP authentication', required: true)]
-#[ToolSetting(key: 'core.email.password', label: 'Email Password', type: 'password', description: 'Email password or App password used for both IMAP and SMTP', required: true)]
-#[ToolSetting(key: 'core.imap.timeout', label: 'IMAP Timeout', type: 'text', description: 'Seconds before an IMAP connection fails (default: 60)', default: '60')]
+#[ToolSetting(key: 'imap_host', label: 'IMAP Host', type: 'text', description: 'e.g. imap.example.com', )]
+#[ToolSetting(key: 'imap_port', label: 'IMAP Port', type: 'text', description: 'Usually 993', default: '993')]
+#[ToolSetting(key: 'imap_encryption', label: 'IMAP Encryption', type: 'select', description: 'Encryption method for IMAP', default: 'ssl', options: ['ssl' => 'SSL/Implicit TLS', 'tls' => 'TLS/STARTTLS', 'notls' => 'None (not recommended)'])]
+#[ToolSetting(key: 'email_username', label: 'Email Username', type: 'text', description: 'Email address used for both IMAP and SMTP authentication', required: true)]
+#[ToolSetting(key: 'email_password', label: 'Email Password', type: 'password', description: 'Email password or App password used for both IMAP and SMTP', required: true)]
+#[ToolSetting(key: 'imap_timeout', label: 'IMAP Timeout', type: 'text', description: 'Seconds before an IMAP connection fails (default: 60)', default: '60')]
 // SMTP settings (for send operations)
-#[ToolSetting(key: 'core.smtp.host', label: 'SMTP Host', type: 'text', description: 'e.g. smtp.example.com', )]
-#[ToolSetting(key: 'core.smtp.port', label: 'SMTP Port', type: 'text', description: 'Usually 587 or 465', default: '587')]
-#[ToolSetting(key: 'core.smtp.encryption', label: 'SMTP Encryption', type: 'select', description: 'Encryption method for SMTP', default: 'tls', options: ['ssl' => 'SSL/Implicit TLS', 'tls' => 'TLS/STARTTLS', 'notls' => 'None (not recommended)'])]
-#[ToolSetting(key: 'core.smtp.from', label: 'From Address', type: 'text', description: 'e.g. agent@spora.local', required: true, exposeToLlm: true)]
-#[ToolSetting(key: 'core.smtp.allowed_recipients', label: 'Allowed Recipients', type: 'text', description: 'Comma-separated list of exact email addresses the agent is allowed to send to (or * for all).', exposeToLlm: true)]
-#[ToolSetting(key: 'core.smtp.timeout', label: 'SMTP Timeout', type: 'text', description: 'Seconds before an SMTP connection fails (default: 30)', default: '30')]
+#[ToolSetting(key: 'smtp_host', label: 'SMTP Host', type: 'text', description: 'e.g. smtp.example.com', )]
+#[ToolSetting(key: 'smtp_port', label: 'SMTP Port', type: 'text', description: 'Usually 587 or 465', default: '587')]
+#[ToolSetting(key: 'smtp_encryption', label: 'SMTP Encryption', type: 'select', description: 'Encryption method for SMTP', default: 'tls', options: ['ssl' => 'SSL/Implicit TLS', 'tls' => 'TLS/STARTTLS', 'notls' => 'None (not recommended)'])]
+#[ToolSetting(key: 'smtp_from', label: 'From Address', type: 'text', description: 'e.g. agent@spora.local', required: true, exposeToLlm: true)]
+#[ToolSetting(key: 'smtp_allowed_recipients', label: 'Allowed Recipients', type: 'text', description: 'Comma-separated list of exact email addresses the agent is allowed to send to (or * for all).', exposeToLlm: true)]
+#[ToolSetting(key: 'smtp_timeout', label: 'SMTP Timeout', type: 'text', description: 'Seconds before an SMTP connection fails (default: 30)', default: '30')]
 // Tool parameters — `action` is auto-synthesized from the #[ToolOperation] list above.
 // Declaration order here mirrors the hand-rolled schema's property order so the
 // approval UI renders fields in the same place.
@@ -74,13 +74,13 @@ use Throwable;
 final class EmailTool extends AbstractTool
 {
     // SMTP settings keys (used in dispatchSmtpEmail)
-    private const KEY_SMTP_HOST              = 'core.smtp.host';
-    private const KEY_SMTP_PORT              = 'core.smtp.port';
-    private const KEY_SMTP_ENCRYPTION        = 'core.smtp.encryption';
-    private const KEY_EMAIL_USERNAME         = 'core.email.username';
-    private const KEY_EMAIL_PASSWORD         = 'core.email.password';
-    private const KEY_SMTP_FROM              = 'core.smtp.from';
-    private const KEY_SMTP_TIMEOUT           = 'core.smtp.timeout';
+    private const KEY_SMTP_HOST              = 'smtp_host';
+    private const KEY_SMTP_PORT              = 'smtp_port';
+    private const KEY_SMTP_ENCRYPTION        = 'smtp_encryption';
+    private const KEY_EMAIL_USERNAME         = 'email_username';
+    private const KEY_EMAIL_PASSWORD         = 'email_password';
+    private const KEY_SMTP_FROM              = 'smtp_from';
+    private const KEY_SMTP_TIMEOUT           = 'smtp_timeout';
 
     /** Default and maximum number of emails to read in one call. */
     private const DEFAULT_EMAIL_LIMIT = 5;
