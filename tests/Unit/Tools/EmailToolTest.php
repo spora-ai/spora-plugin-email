@@ -27,24 +27,24 @@ function makeEmailTool(ToolConfigService&MockInterface $config, ImapClientInterf
 function allImapSettings(): array
 {
     return [
-        'core.imap.host'       => 'imap.example.com',
-        'core.imap.port'       => '993',
-        'core.imap.encryption' => 'ssl',
-        'core.email.username'  => EMAIL_FROM,
-        'core.email.password'  => 'secret123',
-        'core.imap.timeout'    => '60',
+        'imap_host'       => 'imap.example.com',
+        'imap_port'       => '993',
+        'imap_encryption' => 'ssl',
+        'email_username'  => EMAIL_FROM,
+        'email_password'  => 'secret123',
+        'imap_timeout'    => '60',
     ];
 }
 
 function allSmtpSettings(string $from = EMAIL_FROM, string $allowedTo = ''): array
 {
     return [
-        'core.smtp.host'               => 'smtp.example.com',
-        'core.smtp.port'               => '587',
-        'core.smtp.encryption'         => 'tls',
-        'core.smtp.from'               => $from,
-        'core.smtp.allowed_recipients' => $allowedTo,
-        'core.smtp.timeout'            => '30',
+        'smtp_host'               => 'smtp.example.com',
+        'smtp_port'               => '587',
+        'smtp_encryption'         => 'tls',
+        'smtp_from'               => $from,
+        'smtp_allowed_recipients' => $allowedTo,
+        'smtp_timeout'            => '30',
     ];
 }
 

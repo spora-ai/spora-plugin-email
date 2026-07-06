@@ -15,16 +15,16 @@ use Spora\Tools\ValueObjects\ToolResult;
 final class EmailSettingsResolver
 {
     // IMAP settings keys
-    private const KEY_IMAP_HOST       = 'core.imap.host';
-    private const KEY_IMAP_PORT       = 'core.imap.port';
-    private const KEY_IMAP_ENCRYPTION = 'core.imap.encryption';
-    private const KEY_EMAIL_USERNAME  = 'core.email.username';
-    private const KEY_EMAIL_PASSWORD  = 'core.email.password';
-    private const KEY_IMAP_TIMEOUT    = 'core.imap.timeout';
+    private const KEY_IMAP_HOST       = 'imap_host';
+    private const KEY_IMAP_PORT       = 'imap_port';
+    private const KEY_IMAP_ENCRYPTION = 'imap_encryption';
+    private const KEY_EMAIL_USERNAME  = 'email_username';
+    private const KEY_EMAIL_PASSWORD  = 'email_password';
+    private const KEY_IMAP_TIMEOUT    = 'imap_timeout';
 
     // SMTP settings keys
-    private const KEY_SMTP_FROM              = 'core.smtp.from';
-    private const KEY_SMTP_ALLOWED_RECIPIENTS = 'core.smtp.allowed_recipients';
+    private const KEY_SMTP_FROM              = 'smtp_from';
+    private const KEY_SMTP_ALLOWED_RECIPIENTS = 'smtp_allowed_recipients';
 
     private const MSG_IMAP_INCOMPLETE = 'IMAP configuration is incomplete. Please configure IMAP settings.';
 
@@ -80,7 +80,7 @@ final class EmailSettingsResolver
     public function validateSmtpSettings(array $settings, string $to): ?ToolResult
     {
         $from = $settings[self::KEY_SMTP_FROM] ?? '';
-        $smtpHost = $settings['core.smtp.host'] ?? '';
+        $smtpHost = $settings['smtp_host'] ?? '';
 
         if (empty($smtpHost) || empty($from)) {
             return new ToolResult(false, 'SMTP configuration is incomplete. Please configure SMTP Host and From Address in settings.');

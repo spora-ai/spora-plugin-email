@@ -21,25 +21,25 @@ After install, the tool is registered as `email` in Spora's `communication` cate
 
 ## Configuration
 
-Settings → Tools → Email. The same `core.email.username` and
-`core.email.password` are used for both IMAP and SMTP authentication.
+Settings → Tools → Email. The same `email_username` and
+`email_password` are used for both IMAP and SMTP authentication.
 
 | Setting | Required | Default | Notes |
 |---|---|---|---|
-| `core.imap.host` | yes (for read operations) | — | e.g. `imap.gmail.com` |
-| `core.imap.port` | no | `993` | IMAPS port; use `143` with `tls` (STARTTLS) |
-| `core.imap.encryption` | no | `ssl` | `ssl` (implicit TLS), `tls` (STARTTLS), or `notls` (not recommended) |
-| `core.imap.timeout` | no | `60` | Seconds before an IMAP connection fails |
-| `core.email.username` | yes | — | Full email address, used for IMAP **and** SMTP |
-| `core.email.password` | yes | — | Account password or app password |
-| `core.smtp.host` | yes (for send operations) | — | e.g. `smtp.gmail.com` |
-| `core.smtp.port` | no | `587` | Submission port; use `465` with `ssl` |
-| `core.smtp.encryption` | no | `tls` | `ssl`, `tls`, or `notls` |
-| `core.smtp.from` | yes (for send/draft) | — | The `From:` address the agent sends as |
-| `core.smtp.allowed_recipients` | no | _(empty = allow any)_ | Comma-separated exact addresses the agent may send to, or `*` for any. **Empty = unrestricted; set an explicit list for production.** |
-| `core.smtp.timeout` | no | `30` | Seconds before an SMTP connection fails |
+| `imap_host` | yes (for read operations) | — | e.g. `imap.gmail.com` |
+| `imap_port` | no | `993` | IMAPS port; use `143` with `tls` (STARTTLS) |
+| `imap_encryption` | no | `ssl` | `ssl` (implicit TLS), `tls` (STARTTLS), or `notls` (not recommended) |
+| `imap_timeout` | no | `60` | Seconds before an IMAP connection fails |
+| `email_username` | yes | — | Full email address, used for IMAP **and** SMTP |
+| `email_password` | yes | — | Account password or app password |
+| `smtp_host` | yes (for send operations) | — | e.g. `smtp.gmail.com` |
+| `smtp_port` | no | `587` | Submission port; use `465` with `ssl` |
+| `smtp_encryption` | no | `tls` | `ssl`, `tls`, or `notls` |
+| `smtp_from` | yes (for send/draft) | — | The `From:` address the agent sends as |
+| `smtp_allowed_recipients` | no | _(empty = allow any)_ | Comma-separated exact addresses the agent may send to, or `*` for any. **Empty = unrestricted; set an explicit list for production.** |
+| `smtp_timeout` | no | `30` | Seconds before an SMTP connection fails |
 
-`core.email.password` is encrypted at rest by Spora's `ToolConfigService`,
+`email_password` is encrypted at rest by Spora's `ToolConfigService`,
 masked in the UI, and never logged. SMTP recipient filtering is enforced by
 `EmailSettingsResolver::validateSmtpSettings` before any message is queued
 to the Symfony Mailer transport.
@@ -58,7 +58,7 @@ approval required.
 | `list_folders` | no | All mailbox folders | _(none)_ |
 | `read_folder` | no | Recent messages from a named folder | `folder` string (required), `limit` int |
 | `create_draft` | no | Save a draft to `Drafts` via IMAP `APPEND` | `to` string, `subject` string, `body` string (all required) |
-| `send_email` | yes | SMTP send via Symfony Mailer | `to` string, `subject` string, `body` string (all required; `to` checked against `core.smtp.allowed_recipients`) |
+| `send_email` | yes | SMTP send via Symfony Mailer | `to` string, `subject` string, `body` string (all required; `to` checked against `smtp_allowed_recipients`) |
 | `create_folder` | yes | IMAP `CREATE` | `new_folder` string (required) |
 | `rename_folder` | yes | IMAP `RENAME` | `folder` string (old name), `new_folder` string (required) |
 | `delete_folder` | yes | IMAP `DELETE` (blocks system folders) | `folder` string (required) |
@@ -94,8 +94,8 @@ A few common operators:
   (Apple ID MFA does not allow raw account passwords). Hosts:
   `imap.mail.me.com:993`, `smtp.mail.me.com:587`.
 - **Self-hosted Postfix + Dovecot** — Plain STARTTLS on `143`/`587`, or
-  implicit TLS on `993`/`465`. Match `core.imap.encryption` and
-  `core.smtp.encryption` to whatever the MTA exposes.
+  implicit TLS on `993`/`465`. Match `imap_encryption` and
+  `smtp_encryption` to whatever the MTA exposes.
 
 Always use an **app password / app-specific password** when the provider
 supports MFA — raw account passwords are rejected by every major provider
