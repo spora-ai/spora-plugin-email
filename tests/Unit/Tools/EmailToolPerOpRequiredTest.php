@@ -27,7 +27,7 @@ function emailToolParameterArgs(string $name): array
     throw new RuntimeException("ToolParameter '{$name}' not declared on " . EmailTool::class);
 }
 
-it('binds limit, mark_as_read, unread_only to read_inbox only', function () {
+it('binds limit, mark_as_read, unread_only as required for read_inbox (limit is also read by read_folder)', function () {
     expect(emailToolParameterArgs('limit')['required'])->toBe(['read_inbox']);
     expect(emailToolParameterArgs('mark_as_read')['required'])->toBe(['read_inbox']);
     expect(emailToolParameterArgs('unread_only')['required'])->toBe(['read_inbox']);
@@ -39,8 +39,8 @@ it('binds folder to the 6 ops that read it', function () {
     ]);
 });
 
-it('binds to to send_email only', function () {
-    expect(emailToolParameterArgs('to')['required'])->toBe(['send_email']);
+it('binds to to send_email + create_draft', function () {
+    expect(emailToolParameterArgs('to')['required'])->toBe(['send_email', 'create_draft']);
 });
 
 it('binds subject and body to send_email + create_draft', function () {
