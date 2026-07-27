@@ -61,16 +61,16 @@ use Throwable;
 // Tool parameters — `action` is auto-synthesized from the #[ToolOperation] list above.
 // Declaration order here mirrors the hand-rolled schema's property order so the
 // approval UI renders fields in the same place.
-#[ToolParameter(name: 'limit', type: 'integer', description: 'Maximum number of emails to retrieve (default 5, max 20). Used with read_inbox.', required: false)]
-#[ToolParameter(name: 'mark_as_read', type: 'boolean', description: 'If true, marks fetched emails as read. Irreversible. Defaults to false.', required: false)]
-#[ToolParameter(name: 'unread_only', type: 'boolean', description: 'If true, returns only unread emails. Defaults to false (returns recent emails regardless of read state). Used with read_inbox.', required: false)]
-#[ToolParameter(name: 'folder', type: 'string', description: 'The folder name to read from, rename from, delete, move from, or act on. E.g. INBOX, Sent, Drafts.', required: false)]
-#[ToolParameter(name: 'to', type: 'string', description: 'The email address of the recipient.', required: false)]
-#[ToolParameter(name: 'subject', type: 'string', description: 'The subject line of the email.', required: false)]
-#[ToolParameter(name: 'body', type: 'string', description: 'The plain text body content of the email.', required: false)]
-#[ToolParameter(name: 'new_folder', type: 'string', description: 'The new folder name for create_folder, rename_folder, or the destination folder for move_email.', required: false)]
-#[ToolParameter(name: 'uid', type: 'integer', description: 'The UID of the email to move, delete, or mark read/unread.', required: false)]
-#[ToolParameter(name: 'read', type: 'boolean', description: 'If true, marks as read. If false, marks as unread. Defaults to true. Used with mark_email_read.', required: false)]
+#[ToolParameter(name: 'limit', type: 'integer', description: 'Maximum number of emails to retrieve (default 5, max 20). Used with read_inbox and read_folder.', required: ['read_inbox'])]
+#[ToolParameter(name: 'mark_as_read', type: 'boolean', description: 'If true, marks fetched emails as read. Irreversible. Defaults to false.', required: ['read_inbox'])]
+#[ToolParameter(name: 'unread_only', type: 'boolean', description: 'If true, returns only unread emails. Defaults to false (returns recent emails regardless of read state). Used with read_inbox.', required: ['read_inbox'])]
+#[ToolParameter(name: 'folder', type: 'string', description: 'The folder name to read from, rename from, delete, move from, or act on. E.g. INBOX, Sent, Drafts.', required: ['read_folder', 'rename_folder', 'delete_folder', 'move_email', 'delete_email', 'mark_email_read'])]
+#[ToolParameter(name: 'to', type: 'string', description: 'The email address of the recipient.', required: ['send_email', 'create_draft'])]
+#[ToolParameter(name: 'subject', type: 'string', description: 'The subject line of the email.', required: ['send_email', 'create_draft'])]
+#[ToolParameter(name: 'body', type: 'string', description: 'The plain text body content of the email.', required: ['send_email', 'create_draft'])]
+#[ToolParameter(name: 'new_folder', type: 'string', description: 'The new folder name for create_folder, rename_folder, or the destination folder for move_email.', required: ['create_folder', 'rename_folder', 'move_email'])]
+#[ToolParameter(name: 'uid', type: 'integer', description: 'The UID of the email to move, delete, or mark read/unread.', required: ['move_email', 'delete_email', 'mark_email_read'])]
+#[ToolParameter(name: 'read', type: 'boolean', description: 'If true, marks as read. If false, marks as unread. Defaults to true. Used with mark_email_read.', required: ['mark_email_read'])]
 final class EmailTool extends AbstractTool
 {
     // SMTP settings keys (used in dispatchSmtpEmail)
