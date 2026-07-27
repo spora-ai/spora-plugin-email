@@ -10,3 +10,12 @@ parameters:
         - vendor
     bootstrapFiles:
         - vendor/autoload.php
+    ignoreErrors:
+        # TODO(spora-core): Remove once `spora-ai/spora-core` releases the
+        # new `bool|array $required` signature on `#[ToolParameter]` (see
+        # https://github.com/spora-ai/spora-core/pull/165 — the per-op form
+        # currently trips PHPStan against the Packagist version still using
+        # `bool $required`).
+        -
+            identifier: argument.type
+            path: src/Tools
