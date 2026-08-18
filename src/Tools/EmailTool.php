@@ -11,6 +11,7 @@ use Spora\Plugins\Email\Email\EmailSettingsResolver;
 use Spora\Plugins\Email\Email\EmailValidationHelpers;
 use Spora\Plugins\Email\Email\FolderCheckContext;
 use Spora\Plugins\Email\Imap\ImapClientInterface;
+use Spora\Services\PrincipalContext;
 use Spora\Services\ToolConfigService;
 use Spora\Tools\AbstractTool;
 use Spora\Tools\Attributes\Tool;
@@ -99,8 +100,13 @@ final class EmailTool extends AbstractTool
         $this->messageFormatter = new EmailMessageFormatter($logger);
     }
 
-    public function execute(array $arguments, int $agentId, ?int $userId = null, ?int $taskId = null): ToolResult
-    {
+    public function execute(
+        array $arguments,
+        int $agentId,
+        ?int $userId = null,
+        ?int $taskId = null,
+        ?PrincipalContext $context = null,
+    ): ToolResult {
         $operation = $this->getOperationName($arguments);
 
         return match ($operation) {
