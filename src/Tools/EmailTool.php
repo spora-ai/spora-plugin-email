@@ -11,6 +11,7 @@ use Spora\Plugins\Email\Email\EmailSettingsResolver;
 use Spora\Plugins\Email\Email\EmailValidationHelpers;
 use Spora\Plugins\Email\Email\FolderCheckContext;
 use Spora\Plugins\Email\Imap\ImapClientInterface;
+use Spora\Services\PrincipalContext;
 use Spora\Services\ToolConfigService;
 use Spora\Tools\AbstractTool;
 use Spora\Tools\Attributes\Tool;
@@ -99,22 +100,32 @@ final class EmailTool extends AbstractTool
         $this->messageFormatter = new EmailMessageFormatter($logger);
     }
 
-    public function execute(array $arguments, int $agentId, ?int $userId = null, ?int $taskId = null): ToolResult
-    {
+    public function execute(
+        array $arguments,
+        int $agentId,
+        ?int $userId = null,
+        ?int $taskId = null,
+        ?PrincipalContext $context = null,
+    ): ToolResult {
         $operation = $this->getOperationName($arguments);
 
+        // IMAP/SMTP credentials are configured on the agent by its owner, so every
+        // settings lookup below is owner-scoped. In a group context the legacy
+        // $userId is the runner, whose email settings are usually empty.
+        $ownerId = $context->ownerUserId ?? $userId;
+
         return match ($operation) {
-            'read_inbox'      => $this->readInbox($arguments, $agentId, $userId),
-            'list_folders'    => $this->listFolders($agentId, $userId),
-            'read_folder'     => $this->readFolder($arguments, $agentId, $userId),
-            'create_draft'    => $this->createDraft($arguments, $agentId, $userId),
-            'send_email'      => $this->sendEmail($arguments, $agentId, $userId),
-            'create_folder'   => $this->createFolder($arguments, $agentId, $userId),
-            'rename_folder'   => $this->renameFolder($arguments, $agentId, $userId),
-            'delete_folder'   => $this->deleteFolder($arguments, $agentId, $userId),
-            'move_email'      => $this->moveEmail($arguments, $agentId, $userId),
-            'delete_email'    => $this->deleteEmail($arguments, $agentId, $userId),
-            'mark_email_read' => $this->markEmailRead($arguments, $agentId, $userId),
+            'read_inbox'      => $this->readInbox($arguments, $agentId, $ownerId),
+            'list_folders'    => $this->listFolders($agentId, $ownerId),
+            'read_folder'     => $this->readFolder($arguments, $agentId, $ownerId),
+            'create_draft'    => $this->createDraft($arguments, $agentId, $ownerId),
+            'send_email'      => $this->sendEmail($arguments, $agentId, $ownerId),
+            'create_folder'   => $this->createFolder($arguments, $agentId, $ownerId),
+            'rename_folder'   => $this->renameFolder($arguments, $agentId, $ownerId),
+            'delete_folder'   => $this->deleteFolder($arguments, $agentId, $ownerId),
+            'move_email'      => $this->moveEmail($arguments, $agentId, $ownerId),
+            'delete_email'    => $this->deleteEmail($arguments, $agentId, $ownerId),
+            'mark_email_read' => $this->markEmailRead($arguments, $agentId, $ownerId),
             default           => ToolResult::fail("Unknown email operation: {$operation}"),
         };
     }
