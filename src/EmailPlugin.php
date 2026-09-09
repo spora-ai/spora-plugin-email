@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Spora\Plugins\Email;
 
-use DI\ContainerBuilder;
+use Spora\Events\ContainerBuildingEvent;
 use Spora\Plugins\AbstractPlugin;
 use Spora\Plugins\Email\Imap\ImapClient;
 use Spora\Plugins\Email\Imap\ImapClientInterface;
 use Spora\Plugins\Email\Tools\EmailTool;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
  * Email plugin entry point. Owns the SMTP send + IMAP read stack for Spora
  * agents.
  */
-final class EmailPlugin extends AbstractPlugin
+final class EmailPlugin extends AbstractPlugin implements EventSubscriberInterface
 {
     public function getName(): string
     {
@@ -28,14 +29,20 @@ final class EmailPlugin extends AbstractPlugin
     }
 
     /**
-     * Wire the IMAP dependency. Spora-core's PluginLoader::registerPlugins()
-     * invokes this hook once per process during boot, BEFORE the DI container
-     * is built. The binding lets php-di autowire `EmailTool` when
-     * instantiating it from the `tool_instances` factory.
+     * Listens for {@see ContainerBuildingEvent} to register the IMAP
+     * dependency so php-di can autowire `EmailTool` when the host App
+     * instantiates it from the `tool_instances` factory.
      */
-    public function register(ContainerBuilder $builder): void
+    public static function getSubscribedEvents(): array
     {
-        $builder->addDefinitions([
+        return [
+            ContainerBuildingEvent::class => 'onContainerBuilding',
+        ];
+    }
+
+    public function onContainerBuilding(ContainerBuildingEvent $event): void
+    {
+        $event->builder()->addDefinitions([
             ImapClientInterface::class => \DI\autowire(ImapClient::class),
         ]);
     }
