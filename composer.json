@@ -5,7 +5,8 @@
   "license": "MIT",
   "require": {
     "php": "^8.4.1",
-    "spora-ai/spora-core": ">=0.18.0 <2.0.0",
+    "spora-ai/spora-core": ">=0.23.0 <2.0.0",
+    "symfony/event-dispatcher": "^8.0",
     "webklex/php-imap": "^6.2"
   },
   "require-dev": {
@@ -27,6 +28,8 @@
   },
   "scripts": {
     "test": "pest",
+    "test:parallel": "pest --parallel --processes=auto --max-batch-size=50",
+    "test:coverage:clover": "XDEBUG_MODE=coverage pest --coverage-clover=coverage.xml --parallel --processes=auto --max-batch-size=50",
     "analyse": "phpstan analyse --no-progress --memory-limit=512M",
     "lint": "php-cs-fixer fix --dry-run --diff --no-interaction"
   },
