@@ -10,6 +10,7 @@ use Spora\Plugins\Email\Email\EmailMessageFormatter;
 use Spora\Plugins\Email\Email\EmailSettingsResolver;
 use Spora\Plugins\Email\Email\EmailValidationHelpers;
 use Spora\Plugins\Email\Email\FolderCheckContext;
+use Spora\Plugins\Email\Email\RecipientAddressBuilder;
 use Spora\Plugins\Email\Imap\ImapClientInterface;
 use Spora\Services\PrincipalContext;
 use Spora\Services\ToolConfigService;
@@ -464,7 +465,7 @@ final class EmailTool extends AbstractTool
 
         $email = (new Email())
             ->from($from)
-            ->to($to)
+            ->to(...RecipientAddressBuilder::parse($to))
             ->subject($subject)
             ->text($body);
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Spora\Plugins\Email\Imap;
 
 use Psr\Log\LoggerInterface;
+use Spora\Plugins\Email\Email\RecipientAddressBuilder;
 use Symfony\Component\Mime\Email;
 use Throwable;
 use Webklex\PHPIMAP\Client;
@@ -116,7 +117,7 @@ class ImapClient implements ImapClientInterface
         $from = $settings['from'] ?? ($settings['username'] ?? '');
         $email = (new Email())
             ->from($from)
-            ->to($to)
+            ->to(...RecipientAddressBuilder::parse($to))
             ->subject($subject)
             ->text($body);
 

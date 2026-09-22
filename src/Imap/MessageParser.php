@@ -396,6 +396,29 @@ final class MessageParser
     }
 
     /**
+     * Parse a user-supplied `to` string into a list of `[name, email]` pairs,
+     * normalizing semicolons to commas so `"a@x.com; b@x.com"` is accepted
+     * in addition to the RFC 5322 comma form. Display names (e.g.
+     * `"Bob <bob@x.com>"`) are preserved on the entries.
+     *
+     * @return list<array{name: ?string, email: string}>
+     */
+    public static function parseRecipientList(string $to): array
+    {
+        $normalized = str_replace(';', ',', $to);
+        $parsed = self::parseAddressList($normalized);
+        $entries = [];
+        foreach ($parsed as $entry) {
+            $email = trim($entry['email']);
+            if ($email === '') {
+                continue;
+            }
+            $entries[] = ['name' => $entry['name'], 'email' => $email];
+        }
+        return $entries;
+    }
+
+    /**
      * Split a multipart body into parts, each with their headers and body.
      *
      * @return list<array{content-type: ?string, content-disposition: ?string, transfer-encoding: string, body: string}>
