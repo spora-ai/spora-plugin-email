@@ -415,6 +415,61 @@ describe('EmailTool', function () {
                 ->and($result->content)->toContain('[From address not configured]')
                 ->and($result->content)->toContain('Draft saved to Drafts folder');
         });
+
+        it('passes imap_drafts_folder override through to saveDraft', function () {
+            $settings = array_merge(
+                allImapSettings(),
+                allSmtpSettings('agent@spora.local'),
+                ['imap_drafts_folder' => '[Gmail]/Drafts'],
+            );
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn($settings);
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->shouldReceive('saveDraft')
+                ->once()
+                ->with(
+                    Mockery::on(static fn(array $s): bool => ($s['drafts_folder'] ?? '') === '[Gmail]/Drafts'),
+                    EMAIL_TO_BOB,
+                    Mockery::any(),
+                    Mockery::any(),
+                )
+                ->andReturn(true);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'   => 'create_draft',
+                'to'       => EMAIL_TO_BOB,
+                'subject'  => 'Test',
+                'body'     => 'Body',
+            ], 1);
+
+            expect($result->success)->toBeTrue()
+                ->and($result->content)->toContain('Draft saved to Drafts folder');
+        });
+
+        it('drafts are NOT gated by smtp_allowed_recipients', function () {
+            // Allowlist only allows bob, but the draft goes to evil.
+            // Drafts must succeed because the allowlist is a send-time gate.
+            $settings = array_merge(
+                allImapSettings(),
+                allSmtpSettings('agent@spora.local', EMAIL_ALLOWED_BOB),
+            );
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn($settings);
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $imap->shouldReceive('saveDraft')->once()->andReturn(true);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'   => 'create_draft',
+                'to'       => 'evil@example.com',
+                'subject'  => 'Test',
+                'body'     => 'Body',
+            ], 1);
+
+            expect($result->success)->toBeTrue()
+                ->and($result->content)->not->toContain(EMAIL_SECURITY_REJECTION);
+        });
     });
 
     // send_email
@@ -505,6 +560,83 @@ describe('EmailTool', function () {
             // Fails on actual SMTP send (no real server), but NOT security rejection
             expect($result->success)->toBeFalse()
                 ->and($result->content)->not->toContain(EMAIL_SECURITY_REJECTION);
+        });
+
+        it('allows a multi-recipient input when every address is allowed', function () {
+            $allowlist = 'alice@example.com, bob@example.com';
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn(allSmtpSettings(EMAIL_FROM, $allowlist));
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'  => 'send_email',
+                'to'      => 'alice@example.com, bob@example.com',
+                'subject' => 'Test',
+                'body'    => 'Body',
+            ], 1);
+
+            expect($result->content)->not->toContain(EMAIL_SECURITY_REJECTION);
+        });
+
+        it('rejects a multi-recipient input when one address is not allowed', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')
+                ->andReturn(allSmtpSettings(EMAIL_FROM, EMAIL_ALLOWED_BOB));
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'  => 'send_email',
+                'to'      => 'bob@example.com, evil@example.com',
+                'subject' => 'Test',
+                'body'    => 'Body',
+            ], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain(EMAIL_SECURITY_REJECTION)
+                ->and($result->content)->toContain('evil@example.com')
+                // bob is allowed — must NOT appear as rejected
+                ->and($result->content)->not->toContain('not permitted to send to: bob@example.com');
+        });
+
+        it('rejects a multi-recipient input containing display names', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')
+                ->andReturn(allSmtpSettings(EMAIL_FROM, EMAIL_ALLOWED_BOB));
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'  => 'send_email',
+                'to'      => 'Bob <bob@example.com>, Evil <evil@example.com>',
+                'subject' => 'Test',
+                'body'    => 'Body',
+            ], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain(EMAIL_SECURITY_REJECTION)
+                ->and($result->content)->toContain('evil@example.com');
+        });
+
+        it('rejects when every recipient in a multi-recipient input is disallowed', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')
+                ->andReturn(allSmtpSettings(EMAIL_FROM, EMAIL_ALLOWED_BOB));
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'  => 'send_email',
+                'to'      => 'evil1@example.com, evil2@example.com',
+                'subject' => 'Test',
+                'body'    => 'Body',
+            ], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain(EMAIL_SECURITY_REJECTION)
+                ->and($result->content)->toContain('evil1@example.com')
+                ->and($result->content)->toContain('evil2@example.com');
         });
     });
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Spora\Plugins\Email\Email;
 
+use Spora\Plugins\Email\Imap\MessageParser;
 use Spora\Services\ToolConfigService;
 use Spora\Tools\ValueObjects\ToolResult;
 
@@ -97,9 +98,35 @@ final class EmailSettingsResolver
     private function checkAllowedRecipients(string $allowed, string $to): ?ToolResult
     {
         $allowedList = array_map('trim', explode(',', $allowed));
-        if (in_array($to, $allowedList, true)) {
+        $rejected = [];
+        foreach ($this->extractRecipients($to) as $email) {
+            if (!in_array($email, $allowedList, true)) {
+                $rejected[] = $email;
+            }
+        }
+        if ($rejected === []) {
             return null;
         }
-        return new ToolResult(false, "SECURITY REJECTION: The agent is only permitted to send emails to: {$allowed}. Cannot send to {$to}");
+        $rejectedCsv = implode(', ', $rejected);
+        return new ToolResult(false, "SECURITY REJECTION: The agent is not permitted to send to: {$rejectedCsv}. Allowed: {$allowed}.");
+    }
+
+    /**
+     * Split an RFC 5322 address list into a flat list of bare email addresses.
+     * Falls back to the raw trimmed string when the parser yields nothing,
+     * so a malformed input still gets a single-recipient security check
+     * rather than silently passing.
+     *
+     * @return list<string>
+     */
+    private function extractRecipients(string $to): array
+    {
+        $parsed = MessageParser::parseAddressList($to);
+        if ($parsed !== []) {
+            $emails = array_map(static fn(array $entry): string => $entry['email'], $parsed);
+            return array_values(array_filter($emails, static fn(string $e): bool => $e !== ''));
+        }
+        $trimmed = trim($to);
+        return $trimmed === '' ? [] : [$trimmed];
     }
 }

@@ -9,12 +9,34 @@ use Symfony\Component\Mime\Email;
 use Throwable;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\ClientManager;
+use Webklex\PHPIMAP\Folder;
 
 /**
  * Real IMAP client using webklex/php-imap.
  */
 final class ImapClient implements ImapClientInterface
 {
+    /**
+     * Common drafts-folder names used as a last-resort fallback after the
+     * RFC 6154 `\Drafts` special-use flag lookup. Compared case-insensitively
+     * against each folder's simple name (last path segment after the
+     * delimiter) so Gmail's `[Gmail]/Drafts`, Dovecot's `Drafts`, and
+     * Yahoo's `Draft` are all reached.
+     */
+    private const DRAFT_FOLDER_ALIASES = [
+        'Drafts',
+        'Draft',
+        'INBOX/Drafts',
+        'INBOX.Drafts',
+        '[Gmail]/Drafts',
+        '[Google Mail]/Drafts',
+    ];
+
+    /**
+     * RFC 6154 special-use flag identifying a drafts mailbox.
+     */
+    private const SPECIAL_USE_DRAFTS = '\Drafts';
+
     public function __construct(
         private readonly ?LoggerInterface $logger = null,
     ) {}
@@ -94,6 +116,13 @@ final class ImapClient implements ImapClientInterface
                 return false;
             }
 
+            $draftFolder = $this->resolveDraftsFolder($client, $settings);
+            if ($draftFolder === null) {
+                $this->logger?->error('IMAP save draft error: could not locate a drafts folder. Set imap_drafts_folder to pin a specific path.');
+                $client->disconnect();
+                return false;
+            }
+
             $from = $settings['from'] ?? ($settings['username'] ?? '');
 
             $email = (new Email())
@@ -102,10 +131,7 @@ final class ImapClient implements ImapClientInterface
                 ->subject($subject)
                 ->text($body);
 
-            $draftFolder = $client->getFolder('Drafts');
-            $rawMessage = $email->toString();
-
-            $draftFolder->appendMessage($rawMessage);
+            $draftFolder->appendMessage($email->toString());
             $client->disconnect();
 
             return true;
@@ -113,6 +139,134 @@ final class ImapClient implements ImapClientInterface
             $this->logger?->error('IMAP save draft error', ['exception' => $e]);
             return false;
         }
+    }
+
+    /**
+     * Locate the drafts folder on the connected IMAP mailbox.
+     *
+     * Resolution order:
+     *   1. `$settings['drafts_folder']` operator override (used verbatim via
+     *      `Client::getFolderByPath()`; returns null when the path doesn't
+     *      exist on the server).
+     *   2. RFC 6154 `\Drafts` special-use flag from the raw LIST response.
+     *      webklex/php-imap's `Folder` model drops the special-use flag, so
+     *      we read the flags directly from `Client::getConnection()->folders()`
+     *      and pick the first match by path.
+     *   3. Common folder-name aliases matched against each folder's simple
+     *      name (last path segment), case-insensitively.
+     */
+    private function resolveDraftsFolder(Client $client, array $settings): ?Folder
+    {
+        $override = trim((string) ($settings['drafts_folder'] ?? ''));
+        if ($override !== '') {
+            return $client->getFolderByPath($override, true, true);
+        }
+
+        $byFlag = $this->findDraftsFolderBySpecialUseFlag($client);
+        if ($byFlag !== null) {
+            return $byFlag;
+        }
+
+        return $this->findDraftsFolderByAlias($client);
+    }
+
+    /**
+     * Scan the raw LIST response for a folder flagged with `\Drafts`. The
+     * webklex/php-imap `Folder` constructor receives the flags but discards
+     * the special-use ones in `parseAttributes()`, so we have to bypass the
+     * model and read the protocol-level payload directly.
+     */
+    private function findDraftsFolderBySpecialUseFlag(Client $client): ?Folder
+    {
+        try {
+            $raw = $client->getConnection()->folders('', '*')->validatedData();
+        } catch (Throwable $e) {
+            $this->logger?->warning('IMAP LIST for special-use failed', ['exception' => $e]);
+            return null;
+        }
+        if (!is_array($raw)) {
+            return null;
+        }
+
+        $path = self::pickDraftsPathFromRawList($raw);
+        if ($path === null) {
+            return null;
+        }
+
+        return $client->getFolderByPath($path, true, true);
+    }
+
+    /**
+     * Pure helper: scan a raw LIST payload (path => ['flags' => [...]])
+     * for the first folder whose flags include `\Drafts`, and return its
+     * path. Returns null when no match is found.
+     *
+     * @param array<int|string, mixed> $raw
+     */
+    private static function pickDraftsPathFromRawList(array $raw): ?string
+    {
+        foreach ($raw as $path => $item) {
+            if (!is_array($item) || !isset($item['flags']) || !is_array($item['flags'])) {
+                continue;
+            }
+            if (in_array(self::SPECIAL_USE_DRAFTS, $item['flags'], true)) {
+                return (string) $path;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Last-resort name lookup. Iterates `Client::getFolders()` and matches
+     * each folder's `name` (last path segment after the delimiter)
+     * case-insensitively against {@see DRAFT_FOLDER_ALIASES}. The first
+     * match wins; later matches are ignored even if they would also satisfy
+     * the alias check.
+     */
+    private function findDraftsFolderByAlias(Client $client): ?Folder
+    {
+        try {
+            $folders = $client->getFolders(false, null, true);
+        } catch (Throwable $e) {
+            $this->logger?->warning('IMAP LIST for alias match failed', ['exception' => $e]);
+            return null;
+        }
+
+        $names = [];
+        foreach ($folders as $folder) {
+            $names[] = (string) $folder->name;
+        }
+
+        $name = self::pickDraftsNameFromAliases($names);
+        if ($name === null) {
+            return null;
+        }
+
+        foreach ($folders as $folder) {
+            if ((string) $folder->name === $name) {
+                return $folder;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Pure helper: return the first folder simple name that matches one of
+     * the {@see DRAFT_FOLDER_ALIASES} case-insensitively, or null on no
+     * match.
+     *
+     * @param list<string> $names
+     */
+    private static function pickDraftsNameFromAliases(array $names): ?string
+    {
+        $aliasesLower = array_map('strtolower', self::DRAFT_FOLDER_ALIASES);
+        foreach ($names as $name) {
+            if (in_array(strtolower($name), $aliasesLower, true)) {
+                return $name;
+            }
+        }
+        return null;
     }
 
     public function createFolder(array $settings, string $name): bool

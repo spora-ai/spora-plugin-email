@@ -88,3 +88,90 @@ it('clamps fetchFolderMessages limit to default when out of range', function () 
     expect($client->fetchFolderMessages([], 'INBOX', 0))->toBe([]);
     expect($client->fetchFolderMessages([], 'INBOX', 100))->toBe([]);
 });
+
+/**
+ * Invoke the private static `pickDraftsPathFromRawList` helper on ImapClient.
+ *
+ * @param array<int|string, mixed> $raw
+ */
+function imapPickDraftsPathFromRawList(array $raw): ?string
+{
+    $ref = new ReflectionMethod(ImapClient::class, 'pickDraftsPathFromRawList');
+    /** @var string|null */
+    return $ref->invoke(null, $raw);
+}
+
+/**
+ * Invoke the private static `pickDraftsNameFromAliases` helper on ImapClient.
+ *
+ * @param list<string> $names
+ */
+function imapPickDraftsNameFromAliases(array $names): ?string
+{
+    $ref = new ReflectionMethod(ImapClient::class, 'pickDraftsNameFromAliases');
+    /** @var string|null */
+    return $ref->invoke(null, $names);
+}
+
+describe('ImapClient drafts-folder resolution (pure helpers)', function () {
+
+    it('picks the first folder with the RFC 6154 \\Drafts flag', function () {
+        $raw = [
+            'INBOX' => ['delimiter' => '/', 'flags' => ['\\HasNoChildren']],
+            'Drafts' => ['delimiter' => '/', 'flags' => ['\\HasNoChildren', '\\Drafts']],
+            'Sent' => ['delimiter' => '/', 'flags' => ['\\Sent', '\\HasNoChildren']],
+        ];
+        expect(imapPickDraftsPathFromRawList($raw))->toBe('Drafts');
+    });
+
+    it('returns Gmail-style [Gmail]/Drafts path when only that folder has the flag', function () {
+        $raw = [
+            'INBOX' => ['delimiter' => '/', 'flags' => ['\\HasNoChildren']],
+            '[Gmail]/Drafts' => ['delimiter' => '/', 'flags' => ['\\HasChildren', '\\Drafts']],
+            '[Gmail]/Sent Mail' => ['delimiter' => '/', 'flags' => ['\\Sent', '\\HasNoChildren']],
+        ];
+        expect(imapPickDraftsPathFromRawList($raw))->toBe('[Gmail]/Drafts');
+    });
+
+    it('returns null when no folder has the \\Drafts flag', function () {
+        $raw = [
+            'INBOX' => ['delimiter' => '/', 'flags' => ['\\HasNoChildren']],
+            'Sent' => ['delimiter' => '/', 'flags' => ['\\Sent']],
+        ];
+        expect(imapPickDraftsPathFromRawList($raw))->toBeNull();
+    });
+
+    it('ignores malformed LIST entries', function () {
+        $raw = [
+            'INBOX' => 'not-an-array',
+            'Broken' => ['delimiter' => '/'],
+            'NoFlags' => ['delimiter' => '/', 'flags' => 'string-not-array'],
+            'Drafts' => ['delimiter' => '/', 'flags' => ['\\Drafts']],
+        ];
+        expect(imapPickDraftsPathFromRawList($raw))->toBe('Drafts');
+    });
+
+    it('alias fallback matches Drafts (English name)', function () {
+        $names = ['INBOX', 'Sent', 'Drafts', 'Trash'];
+        expect(imapPickDraftsNameFromAliases($names))->toBe('Drafts');
+    });
+
+    it('alias fallback matches Draft (Yahoo, singular)', function () {
+        $names = ['INBOX', 'Sent', 'Draft', 'Trash'];
+        expect(imapPickDraftsNameFromAliases($names))->toBe('Draft');
+    });
+
+    it('alias fallback is case-insensitive (drafts vs DRAFTS)', function () {
+        $names = ['INBOX', 'Sent', 'DRAFTS'];
+        expect(imapPickDraftsNameFromAliases($names))->toBe('DRAFTS');
+    });
+
+    it('alias fallback returns null when nothing matches', function () {
+        $names = ['INBOX', 'Sent', 'Trash'];
+        expect(imapPickDraftsNameFromAliases($names))->toBeNull();
+    });
+
+    it('alias fallback returns null on empty folder list', function () {
+        expect(imapPickDraftsNameFromAliases([]))->toBeNull();
+    });
+});
