@@ -112,21 +112,19 @@ final class EmailSettingsResolver
     }
 
     /**
-     * Split an RFC 5322 address list into a flat list of bare email addresses.
-     * Falls back to the raw trimmed string when the parser yields nothing,
-     * so a malformed input still gets a single-recipient security check
-     * rather than silently passing.
+     * Split a recipient string into a flat list of bare email addresses.
+     * Delegates to {@see MessageParser::parseRecipientList()} so semicolon
+     * separators are normalised to commas alongside the RFC 5322 comma form,
+     * keeping the security check in sync with how the message itself is built.
      *
      * @return list<string>
      */
     private function extractRecipients(string $to): array
     {
-        $parsed = MessageParser::parseAddressList($to);
-        if ($parsed !== []) {
-            $emails = array_map(static fn(array $entry): string => $entry['email'], $parsed);
-            return array_values(array_filter($emails, static fn(string $e): bool => $e !== ''));
+        $emails = [];
+        foreach (MessageParser::parseRecipientList($to) as $entry) {
+            $emails[] = $entry['email'];
         }
-        $trimmed = trim($to);
-        return $trimmed === '' ? [] : [$trimmed];
+        return $emails;
     }
 }

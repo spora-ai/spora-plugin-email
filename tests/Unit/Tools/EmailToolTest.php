@@ -662,6 +662,47 @@ describe('EmailTool', function () {
                 '   ',
             ))->toBeNull(); // Empty recipients list trivially passes the allowlist check
         });
+
+        it('splits semicolon-separated recipients before the allowlist check', function () {
+            // Regression: semicolons used to bypass the per-recipient check
+            // because parseAddressList() does not understand them, so the
+            // entire "a; b" string was compared against the allowlist as one
+            // chunk and rejected as an unknown address. parseRecipientList()
+            // normalises ; to , so both addresses are checked individually.
+            $allowlist = 'alice@example.com, bob@example.com';
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')->andReturn(allSmtpSettings(EMAIL_FROM, $allowlist));
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'  => 'send_email',
+                'to'      => 'alice@example.com; bob@example.com',
+                'subject' => 'Test',
+                'body'    => 'Body',
+            ], 1);
+
+            expect($result->content)->not->toContain(EMAIL_SECURITY_REJECTION);
+        });
+
+        it('rejects individual disallowed addresses in a semicolon-separated input', function () {
+            $config = Mockery::mock(ToolConfigService::class);
+            $config->allows('getEffectiveSettings')
+                ->andReturn(allSmtpSettings(EMAIL_FROM, EMAIL_ALLOWED_BOB));
+            $imap = Mockery::mock(ImapClientInterface::class);
+            $tool = makeEmailTool($config, $imap);
+
+            $result = $tool->execute([
+                'action'  => 'send_email',
+                'to'      => 'bob@example.com; evil@example.com',
+                'subject' => 'Test',
+                'body'    => 'Body',
+            ], 1);
+
+            expect($result->success)->toBeFalse()
+                ->and($result->content)->toContain(EMAIL_SECURITY_REJECTION)
+                ->and($result->content)->toContain('evil@example.com');
+        });
     });
 
     // create_folder
