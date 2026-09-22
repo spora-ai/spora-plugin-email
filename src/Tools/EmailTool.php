@@ -84,7 +84,6 @@ final class EmailTool extends AbstractTool
     private const KEY_SMTP_FROM              = 'smtp_from';
     private const KEY_SMTP_TIMEOUT           = 'smtp_timeout';
 
-    // IMAP settings key for the optional drafts-folder override.
     private const KEY_IMAP_DRAFTS_FOLDER = 'imap_drafts_folder';
 
     /** Default and maximum number of emails to read in one call. */
