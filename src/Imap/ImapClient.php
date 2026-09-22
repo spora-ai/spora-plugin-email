@@ -5,21 +5,20 @@ declare(strict_types=1);
 namespace Spora\Plugins\Email\Imap;
 
 use Psr\Log\LoggerInterface;
+use Spora\Plugins\Email\Email\RecipientAddressBuilder;
 use Symfony\Component\Mime\Email;
 use Throwable;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\ClientManager;
 
-/**
- * Real IMAP client using webklex/php-imap.
- */
-final class ImapClient implements ImapClientInterface
+// Not `final` so tests can subclass it with a `connect()` override.
+class ImapClient implements ImapClientInterface
 {
     public function __construct(
         private readonly ?LoggerInterface $logger = null,
     ) {}
 
-    private function connect(array $settings): ?Client
+    protected function connect(array $settings): ?Client
     {
         $host    = $settings['host'] ?? '';
         $port    = $settings['port'] ?? '993';
@@ -90,29 +89,71 @@ final class ImapClient implements ImapClientInterface
     {
         try {
             $client = $this->connect($settings);
-            if (!$client) {
-                return false;
-            }
-
-            $from = $settings['from'] ?? ($settings['username'] ?? '');
-
-            $email = (new Email())
-                ->from($from)
-                ->to($to)
-                ->subject($subject)
-                ->text($body);
-
-            $draftFolder = $client->getFolder('Drafts');
-            $rawMessage = $email->toString();
-
-            $draftFolder->appendMessage($rawMessage);
-            $client->disconnect();
-
-            return true;
+            return $client !== null && $this->appendDraft($client, $settings, $to, $subject, $body);
         } catch (Throwable $e) {
             $this->logger?->error('IMAP save draft error', ['exception' => $e]);
             return false;
         }
+    }
+
+    /**
+     * Build and APPEND the draft message to the resolved drafts folder.
+     * Split from {@see saveDraft()} so each method stays under Sonar's
+     * S1142 (max 3 returns) cap.
+     */
+    private function appendDraft(Client $client, array $settings, string $to, string $subject, string $body): bool
+    {
+        $draftFolder = $this->resolveDraftsFolder($client, $settings);
+        if ($draftFolder === null) {
+            $this->logger?->error('IMAP save draft error: could not locate a drafts folder. Set imap_drafts_folder to pin a specific path.');
+            $client->disconnect();
+            return false;
+        }
+
+        $from = $settings['from'] ?? ($settings['username'] ?? '');
+        $email = (new Email())
+            ->from($from)
+            ->to(...RecipientAddressBuilder::parse($to))
+            ->subject($subject)
+            ->text($body);
+
+        $draftFolder->appendMessage($email->toString());
+        $client->disconnect();
+
+        return true;
+    }
+
+    // webklex/php-imap's Folder constructor discards special-use flags
+    // in parseAttributes(), so we read the raw LIST payload via the
+    // connection's folders() method instead of going through Folder.
+    private function resolveDraftsFolder(Client $client, array $settings): mixed
+    {
+        $rawList = [];
+        try {
+            $rawList = $client->getConnection()->folders('', '*')->validatedData();
+        } catch (Throwable $e) {
+            $this->logger?->warning('IMAP LIST for special-use failed', ['exception' => $e]);
+        }
+
+        $names = [];
+        try {
+            foreach ($client->getFolders(false, null, true) as $folder) {
+                $names[] = $folder->name;
+            }
+        } catch (Throwable $e) {
+            $this->logger?->warning('IMAP LIST for alias match failed', ['exception' => $e]);
+        }
+
+        $path = (new DraftsFolderResolver())->resolve(
+            (string) ($settings['drafts_folder'] ?? ''),
+            is_array($rawList) ? $rawList : [],
+            $names,
+        );
+        if ($path === null) {
+            return null;
+        }
+
+        return $client->getFolderByPath($path, true, true);
     }
 
     public function createFolder(array $settings, string $name): bool

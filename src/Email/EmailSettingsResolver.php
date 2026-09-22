@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Spora\Plugins\Email\Email;
 
+use Spora\Plugins\Email\Imap\MessageParser;
 use Spora\Services\ToolConfigService;
 use Spora\Tools\ValueObjects\ToolResult;
 
@@ -97,9 +98,32 @@ final class EmailSettingsResolver
     private function checkAllowedRecipients(string $allowed, string $to): ?ToolResult
     {
         $allowedList = array_map('trim', explode(',', $allowed));
-        if (in_array($to, $allowedList, true)) {
+        $rejected = [];
+        foreach ($this->extractRecipients($to) as $email) {
+            if (!in_array($email, $allowedList, true)) {
+                $rejected[] = $email;
+            }
+        }
+        if ($rejected === []) {
             return null;
         }
-        return new ToolResult(false, "SECURITY REJECTION: The agent is only permitted to send emails to: {$allowed}. Cannot send to {$to}");
+        $rejectedCsv = implode(', ', $rejected);
+        return new ToolResult(false, "SECURITY REJECTION: The agent is not permitted to send to: {$rejectedCsv}. Allowed: {$allowed}.");
+    }
+
+    /**
+     * Delegates to {@see MessageParser::parseRecipientList()} so semicolons
+     * are normalised here too — the security check must agree with the
+     * message builder.
+     *
+     * @return list<string>
+     */
+    private function extractRecipients(string $to): array
+    {
+        $emails = [];
+        foreach (MessageParser::parseRecipientList($to) as $entry) {
+            $emails[] = $entry['email'];
+        }
+        return $emails;
     }
 }

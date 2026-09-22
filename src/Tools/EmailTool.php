@@ -10,6 +10,7 @@ use Spora\Plugins\Email\Email\EmailMessageFormatter;
 use Spora\Plugins\Email\Email\EmailSettingsResolver;
 use Spora\Plugins\Email\Email\EmailValidationHelpers;
 use Spora\Plugins\Email\Email\FolderCheckContext;
+use Spora\Plugins\Email\Email\RecipientAddressBuilder;
 use Spora\Plugins\Email\Imap\ImapClientInterface;
 use Spora\Services\PrincipalContext;
 use Spora\Services\ToolConfigService;
@@ -52,6 +53,7 @@ use Throwable;
 #[ToolSetting(key: 'email_username', label: 'Email Username', type: 'text', description: 'Email address used for both IMAP and SMTP authentication', required: true)]
 #[ToolSetting(key: 'email_password', label: 'Email Password', type: 'password', description: 'Email password or App password used for both IMAP and SMTP', required: true)]
 #[ToolSetting(key: 'imap_timeout', label: 'IMAP Timeout', type: 'text', description: 'Seconds before an IMAP connection fails (default: 60)', default: '60')]
+#[ToolSetting(key: 'imap_drafts_folder', label: 'Drafts Folder (override)', type: 'text', description: 'Optional: explicit drafts folder path (e.g. "[Gmail]/Drafts"). Leave empty to let the tool auto-detect via RFC 6154 \\Drafts flag.')]
 // SMTP settings (for send operations)
 #[ToolSetting(key: 'smtp_host', label: 'SMTP Host', type: 'text', description: 'e.g. smtp.example.com', )]
 #[ToolSetting(key: 'smtp_port', label: 'SMTP Port', type: 'text', description: 'Usually 587 or 465', default: '587')]
@@ -66,7 +68,7 @@ use Throwable;
 #[ToolParameter(name: 'mark_as_read', type: 'boolean', description: 'If true, marks fetched emails as read. Irreversible. Defaults to false.', required: ['read_inbox'])]
 #[ToolParameter(name: 'unread_only', type: 'boolean', description: 'If true, returns only unread emails. Defaults to false (returns recent emails regardless of read state). Used with read_inbox.', required: ['read_inbox'])]
 #[ToolParameter(name: 'folder', type: 'string', description: 'The folder name to read from, rename from, delete, move from, or act on. E.g. INBOX, Sent, Drafts.', required: ['read_folder', 'rename_folder', 'delete_folder', 'move_email', 'delete_email', 'mark_email_read'])]
-#[ToolParameter(name: 'to', type: 'string', description: 'The email address of the recipient.', required: ['send_email', 'create_draft'])]
+#[ToolParameter(name: 'to', type: 'string', description: 'The email address(es) of the recipient(s). Multiple addresses may be separated by commas (e.g. "alice@example.com, Bob <bob@example.com>").', required: ['send_email', 'create_draft'])]
 #[ToolParameter(name: 'subject', type: 'string', description: 'The subject line of the email.', required: ['send_email', 'create_draft'])]
 #[ToolParameter(name: 'body', type: 'string', description: 'The plain text body content of the email.', required: ['send_email', 'create_draft'])]
 #[ToolParameter(name: 'new_folder', type: 'string', description: 'The new folder name for create_folder, rename_folder, or the destination folder for move_email.', required: ['create_folder', 'rename_folder', 'move_email'])]
@@ -82,6 +84,8 @@ final class EmailTool extends AbstractTool
     private const KEY_EMAIL_PASSWORD         = 'email_password';
     private const KEY_SMTP_FROM              = 'smtp_from';
     private const KEY_SMTP_TIMEOUT           = 'smtp_timeout';
+
+    private const KEY_IMAP_DRAFTS_FOLDER = 'imap_drafts_folder';
 
     /** Default and maximum number of emails to read in one call. */
     private const DEFAULT_EMAIL_LIMIT = 5;
@@ -200,6 +204,8 @@ final class EmailTool extends AbstractTool
 
     public function createDraft(array $arguments, int $agentId, ?int $userId): ToolResult
     {
+        // Drafts are NOT gated by smtp_allowed_recipients — the allowlist
+        // is a send-time check only.
         $to      = trim((string) ($arguments['to'] ?? ''));
         $subject = trim((string) ($arguments['subject'] ?? ''));
         $body    = trim((string) ($arguments['body'] ?? ''));
@@ -213,8 +219,10 @@ final class EmailTool extends AbstractTool
         }
 
         return $this->withImapSettings($agentId, $userId, function (array $imapSettings) use ($to, $subject, $body, $agentId, $userId): ToolResult {
-            $from = (string) ($this->settingsResolver->fetchSettings(static::class, $agentId, $userId)[self::KEY_SMTP_FROM] ?? '');
+            $settings = $this->settingsResolver->fetchSettings(static::class, $agentId, $userId);
+            $from = (string) ($settings[self::KEY_SMTP_FROM] ?? '');
             $imapSettings['from'] = $from;
+            $imapSettings['drafts_folder'] = (string) ($settings[self::KEY_IMAP_DRAFTS_FOLDER] ?? '');
 
             if (!$this->imapClient->saveDraft($imapSettings, $to, $subject, $body)) {
                 $this->logger?->error('EmailTool: failed to save draft');
@@ -456,7 +464,7 @@ final class EmailTool extends AbstractTool
 
         $email = (new Email())
             ->from($from)
-            ->to($to)
+            ->to(...RecipientAddressBuilder::parse($to))
             ->subject($subject)
             ->text($body);
 
