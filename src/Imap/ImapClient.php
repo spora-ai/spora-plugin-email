@@ -11,11 +11,7 @@ use Throwable;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\ClientManager;
 
-/**
- * Real IMAP client using webklex/php-imap.
- *
- * Not `final` so tests can subclass it with a `connect()` override.
- */
+// Not `final` so tests can subclass it with a `connect()` override.
 class ImapClient implements ImapClientInterface
 {
     public function __construct(
@@ -127,13 +123,9 @@ class ImapClient implements ImapClientInterface
         return true;
     }
 
-    /**
-     * Delegate the priority-chain decision to {@see DraftsFolderResolver};
-     * this method only does IO (LIST, getFolderByPath). The webklex/php-imap
-     * `Folder` constructor discards the RFC 6154 `\Drafts` flag in
-     * `parseAttributes()`, so we read the raw LIST payload directly via
-     * `Client::getConnection()->folders()`.
-     */
+    // webklex/php-imap's Folder constructor discards special-use flags
+    // in parseAttributes(), so we read the raw LIST payload via the
+    // connection's folders() method instead of going through Folder.
     private function resolveDraftsFolder(Client $client, array $settings): mixed
     {
         $rawList = [];

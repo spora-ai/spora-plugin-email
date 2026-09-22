@@ -396,10 +396,8 @@ final class MessageParser
     }
 
     /**
-     * Parse a user-supplied `to` string into a list of `[name, email]` pairs,
-     * normalizing semicolons to commas so `"a@x.com; b@x.com"` is accepted
-     * in addition to the RFC 5322 comma form. Display names (e.g.
-     * `"Bob <bob@x.com>"`) are preserved on the entries.
+     * Normalises semicolons to commas so `"a@x.com; b@x.com"` works
+     * alongside the RFC 5322 comma form. Display names are preserved.
      *
      * @return list<array{name: ?string, email: string}>
      */

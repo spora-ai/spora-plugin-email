@@ -7,12 +7,8 @@ namespace Spora\Plugins\Email\Email;
 use Spora\Plugins\Email\Imap\MessageParser;
 use Symfony\Component\Mime\Address;
 
-/**
- * Builds Symfony `Address` instances from a user-supplied `to` string.
- *
- * Symfony's `Email::to()` is variadic and treats a single comma-separated
- * string as one malformed address; we have to splat an actual array.
- */
+// Splat into Symfony's Email::to() — a single comma-separated string
+// fails RFC 5322 validation.
 final class RecipientAddressBuilder
 {
     /**

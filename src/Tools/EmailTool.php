@@ -204,9 +204,8 @@ final class EmailTool extends AbstractTool
 
     public function createDraft(array $arguments, int $agentId, ?int $userId): ToolResult
     {
-        // Drafts are NOT gated by `smtp_allowed_recipients` — the agent may
-        // draft for any recipient; the allowlist is only enforced at SMTP
-        // send time. This keeps the IMAP save path free of SMTP settings.
+        // Drafts are NOT gated by smtp_allowed_recipients — the allowlist
+        // is a send-time check only.
         $to      = trim((string) ($arguments['to'] ?? ''));
         $subject = trim((string) ($arguments['subject'] ?? ''));
         $body    = trim((string) ($arguments['body'] ?? ''));

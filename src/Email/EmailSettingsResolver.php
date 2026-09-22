@@ -112,10 +112,9 @@ final class EmailSettingsResolver
     }
 
     /**
-     * Split a recipient string into a flat list of bare email addresses.
-     * Delegates to {@see MessageParser::parseRecipientList()} so semicolon
-     * separators are normalised to commas alongside the RFC 5322 comma form,
-     * keeping the security check in sync with how the message itself is built.
+     * Delegates to {@see MessageParser::parseRecipientList()} so semicolons
+     * are normalised here too — the security check must agree with the
+     * message builder.
      *
      * @return list<string>
      */
