@@ -92,33 +92,38 @@ class ImapClient implements ImapClientInterface
     {
         try {
             $client = $this->connect($settings);
-            if (!$client) {
-                return false;
-            }
-
-            $draftFolder = $this->resolveDraftsFolder($client, $settings);
-            if ($draftFolder === null) {
-                $this->logger?->error('IMAP save draft error: could not locate a drafts folder. Set imap_drafts_folder to pin a specific path.');
-                $client->disconnect();
-                return false;
-            }
-
-            $from = $settings['from'] ?? ($settings['username'] ?? '');
-
-            $email = (new Email())
-                ->from($from)
-                ->to($to)
-                ->subject($subject)
-                ->text($body);
-
-            $draftFolder->appendMessage($email->toString());
-            $client->disconnect();
-
-            return true;
+            return $client !== null && $this->appendDraft($client, $settings, $to, $subject, $body);
         } catch (Throwable $e) {
             $this->logger?->error('IMAP save draft error', ['exception' => $e]);
             return false;
         }
+    }
+
+    /**
+     * Build and APPEND the draft message to the resolved drafts folder.
+     * Split from {@see saveDraft()} so each method stays under Sonar's
+     * S1142 (max 3 returns) cap.
+     */
+    private function appendDraft(Client $client, array $settings, string $to, string $subject, string $body): bool
+    {
+        $draftFolder = $this->resolveDraftsFolder($client, $settings);
+        if ($draftFolder === null) {
+            $this->logger?->error('IMAP save draft error: could not locate a drafts folder. Set imap_drafts_folder to pin a specific path.');
+            $client->disconnect();
+            return false;
+        }
+
+        $from = $settings['from'] ?? ($settings['username'] ?? '');
+        $email = (new Email())
+            ->from($from)
+            ->to($to)
+            ->subject($subject)
+            ->text($body);
+
+        $draftFolder->appendMessage($email->toString());
+        $client->disconnect();
+
+        return true;
     }
 
     /**

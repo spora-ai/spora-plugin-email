@@ -653,8 +653,8 @@ describe('EmailTool', function () {
             // requireNonEmptyStrings() will catch the empty 'to' before the
             // allowlist check ever runs — so we instead verify the helper
             // path directly via a unit-style invocation.
-            $resolver = new \Spora\Plugins\Email\Email\EmailSettingsResolver(
-                Mockery::mock(\Spora\Services\ToolConfigService::class),
+            $resolver = new Spora\Plugins\Email\Email\EmailSettingsResolver(
+                Mockery::mock(ToolConfigService::class),
             );
 
             expect($resolver->validateSmtpSettings(
