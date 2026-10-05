@@ -104,6 +104,9 @@ final class EmailTool extends AbstractTool
         $this->messageFormatter = new EmailMessageFormatter($logger);
     }
 
+    /**
+     * @deprecated 1.0 pass $context->ownerUserId instead; removed from the interface in core 0.30.0.
+     */
     public function execute(
         array $arguments,
         int $agentId,
@@ -111,12 +114,11 @@ final class EmailTool extends AbstractTool
         ?int $taskId = null,
         ?PrincipalContext $context = null,
     ): ToolResult {
-        $operation = $this->getOperationName($arguments);
-
         // IMAP/SMTP credentials are configured on the agent by its owner, so every
-        // settings lookup below is owner-scoped. In a group context the legacy
-        // $userId is the runner, whose email settings are usually empty.
-        $ownerId = $context->ownerUserId ?? $userId;
+        // settings lookup below is owner-scoped rather than runner-scoped.
+        $ownerId = $context?->ownerUserId;
+
+        $operation = $this->getOperationName($arguments);
 
         return match ($operation) {
             'read_inbox'      => $this->readInbox($arguments, $agentId, $ownerId),
