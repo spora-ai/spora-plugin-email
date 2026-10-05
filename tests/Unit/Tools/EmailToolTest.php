@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use Mockery\MockInterface;
 use Psr\Log\NullLogger;
+use Spora\Models\Principal;
 use Spora\Plugins\Email\Imap\ImapClientInterface;
 use Spora\Plugins\Email\Tools\EmailTool;
+use Spora\Services\PrincipalContext;
 use Spora\Services\ToolConfigService;
 
 const EMAIL_FROM = 'alice@example.com';
@@ -1083,5 +1085,22 @@ describe('EmailTool', function () {
             expect($result->success)->toBeFalse()
                 ->and($result->content)->toContain("Failed to mark email UID 123");
         });
+    });
+
+    it('scopes the settings lookup to the context owner, not the legacy user id', function () {
+        $config = Mockery::mock(ToolConfigService::class);
+        $config->expects('getEffectiveSettings')
+            ->with(EmailTool::class, 1, 99)
+            ->andReturn(allImapSettings());
+        $imap = Mockery::mock(ImapClientInterface::class);
+        $imap->allows('fetchFolderNames')->andReturn(['INBOX']);
+        $tool = makeEmailTool($config, $imap);
+
+        $context = new PrincipalContext(7, Principal::TYPE_USER, 99, 42);
+
+        $result = $tool->execute(['action' => 'list_folders'], 1, 42, null, $context);
+
+        expect($result->success)->toBeTrue()
+            ->and($result->content)->toContain('INBOX');
     });
 });
