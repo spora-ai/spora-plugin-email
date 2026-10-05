@@ -1098,7 +1098,7 @@ describe('EmailTool', function () {
 
         $context = new PrincipalContext(7, Principal::TYPE_USER, 99, 42);
 
-        $result = $tool->execute(['action' => 'list_folders'], 1, 42, null, $context);
+        $result = $tool->execute(['action' => 'list_folders'], 1, null, $context);
 
         expect($result->success)->toBeTrue()
             ->and($result->content)->toContain('INBOX');
