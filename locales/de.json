@@ -1,0 +1,16 @@
+{
+  "Email": "E-Mail",
+  "e.g. imap.example.com": "z. B. imap.example.com",
+  "Usually 993": "Üblicherweise 993",
+  "Encryption method for IMAP": "Verschlüsselungsverfahren für IMAP",
+  "Email address used for both IMAP and SMTP authentication": "E-Mail-Adresse, die sowohl für die IMAP- als auch für die SMTP-Authentifizierung verwendet wird",
+  "Email password or App password used for both IMAP and SMTP": "E-Mail-Passwort oder App-Passwort, das sowohl für IMAP als auch für SMTP verwendet wird",
+  "Seconds before an IMAP connection fails (default: 60)": "Sekunden, nach denen eine IMAP-Verbindung fehlschlägt (Standard: 60)",
+  "Optional: explicit drafts folder path (e.g. \"[Gmail]/Drafts\"). Leave empty to let the tool auto-detect via RFC 6154 \\Drafts flag.": "Optional: expliziter Pfad zum Entwurfsordner (z. B. \"[Gmail]/Drafts\"). Leer lassen, damit das Tool den Ordner anhand des RFC-6154-Flags \\Drafts automatisch erkennt.",
+  "e.g. smtp.example.com": "z. B. smtp.example.com",
+  "Usually 587 or 465": "Üblicherweise 587 oder 465",
+  "Encryption method for SMTP": "Verschlüsselungsverfahren für SMTP",
+  "e.g. agent@spora.local": "z. B. agent@spora.local",
+  "Comma-separated list of exact email addresses the agent is allowed to send to (or * for all).": "Kommagetrennte Liste der exakten E-Mail-Adressen, an die der Agent senden darf (oder * für alle).",
+  "Seconds before an SMTP connection fails (default: 30)": "Sekunden, nach denen eine SMTP-Verbindung fehlschlägt (Standard: 30)"
+}
