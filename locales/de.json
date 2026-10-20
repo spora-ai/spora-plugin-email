@@ -25,5 +25,6 @@
   "Delete email folder '{$name}'": "E-Mail-Ordner '{$name}' löschen",
   "Move email UID {$uid} from '{$from}' to '{$to}'": "E-Mail mit UID {$uid} von '{$from}' nach '{$to}' verschieben",
   "Delete email UID {$uid} from '{$folder}'": "E-Mail mit UID {$uid} aus '{$folder}' löschen",
-  "Mark email UID {$uid} as {$read}": "E-Mail mit UID {$uid} als {$read} markieren"
+  "Mark email UID {$uid} as {$read}": "E-Mail mit UID {$uid} als {$read} markieren",
+  "SMTP send + IMAP read for Spora agents.": "SMTP-Versand und IMAP-Empfang für Spora-Agenten."
 }
