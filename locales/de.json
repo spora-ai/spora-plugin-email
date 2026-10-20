@@ -12,5 +12,18 @@
   "Encryption method for SMTP": "Verschlüsselungsverfahren für SMTP",
   "e.g. agent@spora.local": "z. B. agent@spora.local",
   "Comma-separated list of exact email addresses the agent is allowed to send to (or * for all).": "Kommagetrennte Liste der exakten E-Mail-Adressen, an die der Agent senden darf (oder * für alle).",
-  "Seconds before an SMTP connection fails (default: 30)": "Sekunden, nach denen eine SMTP-Verbindung fehlschlägt (Standard: 30)"
+  "Seconds before an SMTP connection fails (default: 30)": "Sekunden, nach denen eine SMTP-Verbindung fehlschlägt (Standard: 30)",
+  "List all email folders": "Alle E-Mail-Ordner auflisten",
+  "Read emails from a specific folder": "E-Mails aus einem bestimmten Ordner lesen",
+  "Save an email draft to the Drafts folder": "E-Mail-Entwurf im Entwurfsordner speichern",
+  "Perform an email operation": "Eine E-Mail-Operation ausführen",
+  "Sending email to {$to} with subject: '{$sub}'": "E-Mail an {$to} mit Betreff: '{$sub}' senden",
+  "Read unread emails from the inbox": "Ungelesene E-Mails aus dem Posteingang lesen",
+  "Read recent emails from the inbox": "Neueste E-Mails aus dem Posteingang lesen",
+  "Create email folder '{$name}'": "E-Mail-Ordner '{$name}' erstellen",
+  "Rename email folder '{$from}' to '{$to}'": "E-Mail-Ordner '{$from}' in '{$to}' umbenennen",
+  "Delete email folder '{$name}'": "E-Mail-Ordner '{$name}' löschen",
+  "Move email UID {$uid} from '{$from}' to '{$to}'": "E-Mail mit UID {$uid} von '{$from}' nach '{$to}' verschieben",
+  "Delete email UID {$uid} from '{$folder}'": "E-Mail mit UID {$uid} aus '{$folder}' löschen",
+  "Mark email UID {$uid} as {$read}": "E-Mail mit UID {$uid} als {$read} markieren"
 }
