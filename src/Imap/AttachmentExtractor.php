@@ -8,21 +8,9 @@ namespace Spora\Plugins\Email\Imap;
  * Pure helper that converts a list of parsed MIME parts into the normalized
  * attachment metadata shape that the rest of the application consumes.
  *
- * The input shape comes from MessageParser::splitMultipart() and friends:
- *   - 'headers'  : array<string, string> — raw header values, keys may
- *                  arrive as `content-type` or `Content-Type` depending on
- *                  the upstream parser.
- *   - 'body'     : string
- *
- * The output shape:
- *   - filename    : best-effort filename, or null when neither
- *                   Content-Disposition's filename= nor Content-Type's
- *                   name= is present.
- *   - content_type: lowercased Content-Type, or '' when missing.
- *   - size        : body length in bytes.
- *   - content_id  : Content-Id with angle brackets stripped, or null.
- *   - disposition: always 'attachment' (parts without that disposition
- *                   are filtered upstream by is_attachment()).
+ * A part counts as an attachment when its Content-Disposition says
+ * `attachment` and its Content-Type is not `text/*`. The filename comes from
+ * the disposition's `filename=`, falling back to the type's `name=`.
  */
 final class AttachmentExtractor
 {

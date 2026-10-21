@@ -6,7 +6,8 @@ namespace Spora\Plugins\Email\Email;
 
 /**
  * Generates human-readable action descriptions for each Email tool operation.
- * Extracted from EmailTool to keep the tool class under S1448's method limit.
+ * Extracted from EmailTool to keep the tool class inside SonarQube's S1448
+ * method limit.
  *
  * The strings are `sprintf()` templates, not interpolated sentences: the
  * host translates the *rendered* description, and only a `%s`/`%d` template

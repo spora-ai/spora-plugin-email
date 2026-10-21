@@ -12,7 +12,7 @@ use Spora\Plugins\Email\Tools\EmailTool;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Email plugin entry point. Owns the SMTP send + IMAP read stack for Spora
+ * Email plugin entry point. Owns the SMTP send and IMAP read stack for Spora
  * agents.
  */
 final class EmailPlugin extends AbstractPlugin implements EventSubscriberInterface
@@ -29,27 +29,7 @@ final class EmailPlugin extends AbstractPlugin implements EventSubscriberInterfa
     }
 
     /**
-     * Translation catalogues this plugin ships, declared through
-     * {@see \Spora\Plugins\PluginInterface::translationsPaths()}.
-     *
-     * Keys are the English source text — `de.json` reads
-     * `{"Email": "E-Mail"}`, not `{"name": "E-Mail"}`. That is what makes the
-     * host's `i18n:check` able to fail when a string is edited without being
-     * re-translated: the key changes and the old entry orphans.
-     *
-     * **Only operator copy belongs in here.** A string the model reads is
-     * never translated, which for this plugin means `#[Tool].description`,
-     * every `#[ToolOperation].description`, every `#[ToolParameter].description`,
-     * every `#[ToolSetting].label` and its `options`, and all `ToolResult`
-     * content. What `locales/de.json` holds is the operator-facing copy:
-     * every tool's `displayName`, every `#[ToolSetting].description`, the
-     * `plugin.json` description, and the `describeAction()` strings — each
-     * a string only an operator ever reads.
-     *
-     * Needs a core that reads `translationsPaths()` — 0.31.0 and later. On
-     * 0.30.x nothing calls the method, so the catalogue is silently
-     * ignored and the copy stays English, which is the fallback every
-     * layer already uses.
+     * The plugin's `locales/` directory — one `<lang>.json` per language.
      *
      * @return string[]
      */
@@ -61,9 +41,7 @@ final class EmailPlugin extends AbstractPlugin implements EventSubscriberInterfa
     }
 
     /**
-     * Listens for {@see ContainerBuildingEvent} to register the IMAP
-     * dependency so php-di can autowire `EmailTool` when the host App
-     * instantiates it from the `tool_instances` factory.
+     * Registers the IMAP dependency so php-di can autowire `EmailTool`.
      */
     public static function getSubscribedEvents(): array
     {

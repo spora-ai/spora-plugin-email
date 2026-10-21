@@ -9,9 +9,9 @@ use Spora\Services\ToolConfigService;
 use Spora\Tools\ValueObjects\ToolResult;
 
 /**
- * Resolves IMAP/SMTP settings for the Email tool. Centralizes the "config
- * incomplete" check and the SMTP recipient allowlist so the public methods
- * in EmailTool can stay short.
+ * Resolves IMAP/SMTP settings for the Email tool. Centralises the
+ * "config incomplete" check and the SMTP recipient allowlist so the public
+ * methods in EmailTool can stay short.
  */
 final class EmailSettingsResolver
 {
