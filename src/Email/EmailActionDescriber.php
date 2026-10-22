@@ -6,7 +6,12 @@ namespace Spora\Plugins\Email\Email;
 
 /**
  * Generates human-readable action descriptions for each Email tool operation.
- * Extracted from EmailTool to keep the tool class under S1448's method limit.
+ * Extracted from EmailTool to keep the tool class inside SonarQube's S1448
+ * method limit.
+ *
+ * The strings are `sprintf()` templates, not interpolated sentences: the
+ * host translates the *rendered* description, and only a `%s`/`%d` template
+ * can be matched back to the catalogue entry it came from.
  */
 final class EmailActionDescriber
 {
@@ -36,12 +41,14 @@ final class EmailActionDescriber
     {
         $to  = $arguments['to'] ?? 'Unknown Recipient';
         $sub = $arguments['subject'] ?? 'No Subject';
-        return "Sending email to {$to} with subject: '{$sub}'";
+
+        return sprintf("Sending email to %s with subject: '%s'", $to, $sub);
     }
 
     private function describeReadInbox(array $arguments): string
     {
         $unreadOnly = (bool) ($arguments['unread_only'] ?? false);
+
         return $unreadOnly
             ? 'Read unread emails from the inbox'
             : 'Read recent emails from the inbox';
@@ -50,20 +57,23 @@ final class EmailActionDescriber
     private function describeCreateFolder(array $arguments): string
     {
         $name = $arguments['new_folder'] ?? '[folder name]';
-        return "Create email folder '{$name}'";
+
+        return sprintf("Create email folder '%s'", $name);
     }
 
     private function describeRenameFolder(array $arguments): string
     {
         $from = $arguments['folder'] ?? self::PLACEHOLDER_FOLDER;
         $to   = $arguments['new_folder'] ?? '[new name]';
-        return "Rename email folder '{$from}' to '{$to}'";
+
+        return sprintf("Rename email folder '%s' to '%s'", $from, $to);
     }
 
     private function describeDeleteFolder(array $arguments): string
     {
         $name = $arguments['folder'] ?? self::PLACEHOLDER_FOLDER;
-        return "Delete email folder '{$name}'";
+
+        return sprintf("Delete email folder '%s'", $name);
     }
 
     private function describeMoveEmail(array $arguments): string
@@ -71,20 +81,33 @@ final class EmailActionDescriber
         $uid  = $arguments['uid'] ?? self::PLACEHOLDER_UID;
         $from = $arguments['folder'] ?? self::PLACEHOLDER_FOLDER;
         $to   = $arguments['new_folder'] ?? self::PLACEHOLDER_FOLDER;
-        return "Move email UID {$uid} from '{$from}' to '{$to}'";
+
+        return sprintf("Move email UID %s from '%s' to '%s'", $uid, $from, $to);
     }
 
     private function describeDeleteEmail(array $arguments): string
     {
         $uid    = $arguments['uid'] ?? self::PLACEHOLDER_UID;
         $folder = $arguments['folder'] ?? self::PLACEHOLDER_FOLDER;
-        return "Delete email UID {$uid} from '{$folder}'";
+
+        return sprintf("Delete email UID %s from '%s'", $uid, $folder);
     }
 
+    /**
+     * The read state is part of the sentence, not an argument in it.
+     *
+     * A single template would carry the state as a placeholder, and the
+     * placeholder would be filled with the English word — "E-Mail mit UID
+     * 42 als read markieren". Two templates keep the German word in the
+     * catalogue, where it belongs.
+     */
     private function describeMarkEmailRead(array $arguments): string
     {
         $uid  = $arguments['uid'] ?? self::PLACEHOLDER_UID;
-        $read = ($arguments['read'] ?? true) ? 'read' : 'unread';
-        return "Mark email UID {$uid} as {$read}";
+        $read = (bool) ($arguments['read'] ?? true);
+
+        return $read
+            ? sprintf('Mark email UID %s as read', $uid)
+            : sprintf('Mark email UID %s as unread', $uid);
     }
 }

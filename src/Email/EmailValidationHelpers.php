@@ -9,8 +9,9 @@ use Throwable;
 
 /**
  * Validation and "guard" helpers for {@see \Spora\Plugins\Email\Tools\EmailTool},
- * pulled out so the tool's method count and per-method return counts stay under
- * the SonarQube `S1448` / `S1142` caps without changing its public API.
+ * pulled out so the tool's method count and per-method return counts stay
+ * inside the SonarQube `S1448` / `S1142` caps without changing its public
+ * API.
  *
  * All-static and stateless: each call passes the collaborators it needs as
  * arguments. Same shape as {@see \Spora\Agents\SchemaValidator}.
@@ -18,7 +19,7 @@ use Throwable;
 final class EmailValidationHelpers
 {
     /**
-     * @param array<string, string> $values  label -> value; the label is included in the error.
+     * @param array<string, string> $values label => value; an empty value fails.
      */
     public static function requireNonEmptyStrings(array $values, string $message): ?ToolResult
     {
@@ -57,7 +58,7 @@ final class EmailValidationHelpers
      * Precondition for `createFolder`: `$name` must not already exist.
      * Invokes `$callback` with the resolved IMAP settings only when the
      * invariant holds — lets the caller collapse the success/failure path
-     * to a single `return` (keeping `S1142` happy).
+     * to a single `return`.
      *
      * @param callable(array<string, mixed>): ToolResult $callback
      */

@@ -9,9 +9,8 @@ use Spora\Tools\ValueObjects\ToolResult;
 use Throwable;
 
 /**
- * Centralized IMAP error message formatting and message-list rendering for
- * the Email tool. Keeps public methods of EmailTool free of presentation
- * details.
+ * Centralised IMAP error message formatting and message-list rendering for
+ * the Email tool, so its operations carry no presentation details.
  */
 final class EmailMessageFormatter
 {

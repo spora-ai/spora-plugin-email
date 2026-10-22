@@ -8,8 +8,8 @@ use Spora\Plugins\Email\Imap\ImapClientInterface;
 
 /**
  * Carries the three collaborators needed for IMAP folder invariant checks.
- * Introduced so {@see EmailValidationHelpers::checkFolderInvariant()} stays
- * under SonarQube's S107 parameter-count cap (7).
+ * Introduced so the folder guards stay inside SonarQube's S107
+ * parameter-count cap.
  *
  * Immutable by convention; readonly props prevent accidental mutation.
  */

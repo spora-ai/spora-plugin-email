@@ -6,27 +6,17 @@ namespace Spora\Plugins\Email\Imap;
 
 /**
  * Pure-function helpers for parsing raw IMAP message payloads into the
- * normalized shape that the rest of the application consumes.
- *
- * These helpers exist so that the network-bound ImapClient can be unit-tested
- * without an IMAP server: the parsers are pure functions of their input.
+ * normalized shape the rest of the application consumes. Kept pure so the
+ * network-bound ImapClient can be unit-tested without an IMAP server.
  */
 final class MessageParser
 {
     private const HTML_TYPE = 'text/html';
     private const PLAIN_TYPE = 'text/plain';
 
-
     /**
-     * Parse an RFC 5322 address-list string into a list of [name, email] pairs.
-     *
-     * Handles:
-     *   - "alice@example.com"
-     *   - "Alice <alice@example.com>"
-     *   - "alice@example.com, Bob <bob@example.com>"
-     *   - "\"Last, First\" <first.last@example.com>"
-     *
-     * `name` is null when no display name is present.
+     * Parse an RFC 5322 address-list string into a list of [name, email]
+     * pairs. `name` is null when no display name is present.
      *
      * @return list<array{name: ?string, email: string}>
      */
@@ -214,10 +204,10 @@ final class MessageParser
     }
 
     /**
-     * Render a header value as a `Name <email>` string. Accepts:
-     *   - null / '' / [] → null
-     *   - string         → returned verbatim
-     *   - object / array / scalar → joined list of rendered entries
+     * Render a header value as a `Name <email>` string. A null, empty or
+     * empty-array value renders as null; a string is returned verbatim; an
+     * object, array or scalar is joined into a comma-separated list of
+     * rendered entries.
      */
     private static function renderHeader(mixed $raw): ?string
     {
@@ -262,9 +252,6 @@ final class MessageParser
         };
     }
 
-    /**
-     * Decode a quoted-printable encoded string.
-     */
     public static function decodeQuotedPrintable(string $s): string
     {
         if ($s === '') {
@@ -373,8 +360,6 @@ final class MessageParser
 
     /**
      * @deprecated Use {@see AttachmentExtractor::extract()} directly.
-     *             Kept as a thin shim for callers that still use
-     *             MessageParser::extractAttachments().
      *
      * @param list<array{headers?: array<string, string>, body?: string}> $parts
      * @return list<array{filename: ?string, content_type: string, size: int, content_id: ?string, disposition: string}>
@@ -384,9 +369,6 @@ final class MessageParser
         return AttachmentExtractor::extract($parts);
     }
 
-    /**
-     * Extract the boundary parameter from a Content-Type header.
-     */
     private static function extractBoundary(string $contentType): ?string
     {
         if (preg_match('/boundary\s*=\s*"?([^";\s]+)"?/i', $contentType, $m)) {

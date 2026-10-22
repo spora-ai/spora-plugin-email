@@ -12,7 +12,7 @@ use Spora\Plugins\Email\Tools\EmailTool;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Email plugin entry point. Owns the SMTP send + IMAP read stack for Spora
+ * Email plugin entry point. Owns the SMTP send and IMAP read stack for Spora
  * agents.
  */
 final class EmailPlugin extends AbstractPlugin implements EventSubscriberInterface
@@ -29,9 +29,19 @@ final class EmailPlugin extends AbstractPlugin implements EventSubscriberInterfa
     }
 
     /**
-     * Listens for {@see ContainerBuildingEvent} to register the IMAP
-     * dependency so php-di can autowire `EmailTool` when the host App
-     * instantiates it from the `tool_instances` factory.
+     * The plugin's `locales/` directory — one `<lang>.json` per language.
+     *
+     * @return string[]
+     */
+    public function translationsPaths(): array
+    {
+        return [
+            __DIR__ . '/../locales',
+        ];
+    }
+
+    /**
+     * Registers the IMAP dependency so php-di can autowire `EmailTool`.
      */
     public static function getSubscribedEvents(): array
     {

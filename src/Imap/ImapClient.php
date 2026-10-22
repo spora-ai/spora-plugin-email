@@ -98,8 +98,8 @@ class ImapClient implements ImapClientInterface
 
     /**
      * Build and APPEND the draft message to the resolved drafts folder.
-     * Split from {@see saveDraft()} so each method stays under Sonar's
-     * S1142 (max 3 returns) cap.
+     * Split from {@see saveDraft()} to keep both inside SonarQube's S1142
+     * return-count cap.
      */
     private function appendDraft(Client $client, array $settings, string $to, string $subject, string $body): bool
     {
@@ -324,8 +324,6 @@ class ImapClient implements ImapClientInterface
     }
 
     /**
-     * Map a webklex message object into the normalized summary shape.
-     *
      * @return array{uid: string, subject: string, from: string, date: string, body: string}
      */
     private function mapMessage(object $message): array

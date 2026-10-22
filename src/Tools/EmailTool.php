@@ -26,8 +26,11 @@ use Symfony\Component\Mime\Email;
 use Throwable;
 
 /**
- * Email tool supporting IMAP (read inbox, list folders, read folders) and SMTP (send, drafts).
- * Security: SMTP recipients are validated against smtp_allowed_recipients (comma-separated list or *).
+ * Email tool supporting IMAP (read inbox, list folders, read folders) and
+ * SMTP (send, drafts).
+ *
+ * Security: SMTP recipients are validated against `smtp_allowed_recipients`
+ * (a comma-separated list of exact addresses, or `*` for all).
  */
 #[Tool(
     name: 'email',
@@ -46,7 +49,6 @@ use Throwable;
 #[ToolOperation(name: 'move_email', description: 'Move an email to a different folder', enabledByDefault: false, requiresApprovalByDefault: true)]
 #[ToolOperation(name: 'delete_email', description: 'Permanently delete an email', enabledByDefault: false, requiresApprovalByDefault: true)]
 #[ToolOperation(name: 'mark_email_read', description: 'Mark an email as read or unread', enabledByDefault: false, requiresApprovalByDefault: true)]
-// IMAP settings (for read operations)
 #[ToolSetting(key: 'imap_host', label: 'IMAP Host', type: 'text', description: 'e.g. imap.example.com', )]
 #[ToolSetting(key: 'imap_port', label: 'IMAP Port', type: 'text', description: 'Usually 993', default: '993')]
 #[ToolSetting(key: 'imap_encryption', label: 'IMAP Encryption', type: 'select', description: 'Encryption method for IMAP', default: 'ssl', options: ['ssl' => 'SSL/Implicit TLS', 'tls' => 'TLS/STARTTLS', 'notls' => 'None (not recommended)'])]
@@ -54,7 +56,6 @@ use Throwable;
 #[ToolSetting(key: 'email_password', label: 'Email Password', type: 'password', description: 'Email password or App password used for both IMAP and SMTP', required: true)]
 #[ToolSetting(key: 'imap_timeout', label: 'IMAP Timeout', type: 'text', description: 'Seconds before an IMAP connection fails (default: 60)', default: '60')]
 #[ToolSetting(key: 'imap_drafts_folder', label: 'Drafts Folder (override)', type: 'text', description: 'Optional: explicit drafts folder path (e.g. "[Gmail]/Drafts"). Leave empty to let the tool auto-detect via RFC 6154 \\Drafts flag.')]
-// SMTP settings (for send operations)
 #[ToolSetting(key: 'smtp_host', label: 'SMTP Host', type: 'text', description: 'e.g. smtp.example.com', )]
 #[ToolSetting(key: 'smtp_port', label: 'SMTP Port', type: 'text', description: 'Usually 587 or 465', default: '587')]
 #[ToolSetting(key: 'smtp_encryption', label: 'SMTP Encryption', type: 'select', description: 'Encryption method for SMTP', default: 'tls', options: ['ssl' => 'SSL/Implicit TLS', 'tls' => 'TLS/STARTTLS', 'notls' => 'None (not recommended)'])]
@@ -62,8 +63,7 @@ use Throwable;
 #[ToolSetting(key: 'smtp_allowed_recipients', label: 'Allowed Recipients', type: 'text', description: 'Comma-separated list of exact email addresses the agent is allowed to send to (or * for all).', exposeToLlm: true)]
 #[ToolSetting(key: 'smtp_timeout', label: 'SMTP Timeout', type: 'text', description: 'Seconds before an SMTP connection fails (default: 30)', default: '30')]
 // Tool parameters — `action` is auto-synthesized from the #[ToolOperation] list above.
-// Declaration order here mirrors the hand-rolled schema's property order so the
-// approval UI renders fields in the same place.
+// Declaration order here is the order the approval UI renders the fields in.
 #[ToolParameter(name: 'limit', type: 'integer', description: 'Maximum number of emails to retrieve (default 5, max 20). Used with read_inbox and read_folder.', required: ['read_inbox'])]
 #[ToolParameter(name: 'mark_as_read', type: 'boolean', description: 'If true, marks fetched emails as read. Irreversible. Defaults to false.', required: ['read_inbox'])]
 #[ToolParameter(name: 'unread_only', type: 'boolean', description: 'If true, returns only unread emails. Defaults to false (returns recent emails regardless of read state). Used with read_inbox.', required: ['read_inbox'])]
@@ -76,7 +76,6 @@ use Throwable;
 #[ToolParameter(name: 'read', type: 'boolean', description: 'If true, marks as read. If false, marks as unread. Defaults to true. Used with mark_email_read.', required: ['mark_email_read'])]
 final class EmailTool extends AbstractTool
 {
-    // SMTP settings keys (used in dispatchSmtpEmail)
     private const KEY_SMTP_HOST              = 'smtp_host';
     private const KEY_SMTP_PORT              = 'smtp_port';
     private const KEY_SMTP_ENCRYPTION        = 'smtp_encryption';
@@ -87,7 +86,6 @@ final class EmailTool extends AbstractTool
 
     private const KEY_IMAP_DRAFTS_FOLDER = 'imap_drafts_folder';
 
-    /** Default and maximum number of emails to read in one call. */
     private const DEFAULT_EMAIL_LIMIT = 5;
     private const MAX_EMAIL_LIMIT     = 20;
 
@@ -406,8 +404,7 @@ final class EmailTool extends AbstractTool
     }
 
     /**
-     * Resolve effective settings for the tool, plus clamp the requested limit
-     * to the supported range. Centralized to keep individual operations terse.
+     * Clamp the requested limit to the supported range.
      */
     private function clampLimit(int $limit): int
     {
