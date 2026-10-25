@@ -5,6 +5,11 @@ declare(strict_types=1);
 use Spora\Plugins\Email\Email\EmailActionDescriber;
 
 /**
+ * The `sprintf()` placeholders a catalogue template carries.
+ */
+const EMAIL_PLACEHOLDER_PATTERN = '/%[sd]/';
+
+/**
  * The catalogue, English source text to German.
  *
  * @return array<string, string>
@@ -107,8 +112,8 @@ it('keeps the German placeholders in step with the English template', function (
 
     expect($entry)->not->toBeNull("no catalogue entry for: {$description}");
 
-    preg_match_all('/%[sd]/', $entry['key'], $english);
-    preg_match_all('/%[sd]/', $entry['value'], $german);
+    preg_match_all(EMAIL_PLACEHOLDER_PATTERN, $entry['key'], $english);
+    preg_match_all(EMAIL_PLACEHOLDER_PATTERN, $entry['value'], $german);
 
     expect($german[0])->toBe($english[0]);
 })->with([
@@ -159,8 +164,8 @@ it('carries a multi-line subject into the approval prompt template the catalogue
         ->and($german)->not->toBe('')
         ->and($description)->toBe(sprintf($template, 'bob@example.com', $subject));
 
-    preg_match_all('/%[sd]/', $template, $english);
-    preg_match_all('/%[sd]/', $german, $germanSpecifiers);
+    preg_match_all(EMAIL_PLACEHOLDER_PATTERN, $template, $english);
+    preg_match_all(EMAIL_PLACEHOLDER_PATTERN, $german, $germanSpecifiers);
 
     expect($germanSpecifiers[0])->toBe($english[0]);
 });
